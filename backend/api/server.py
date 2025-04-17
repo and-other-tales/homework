@@ -421,12 +421,12 @@ async def generate_dataset(
 
         credentials_manager = CredentialsManager()
 
-        # Get credentials
-        _username, _token = credentials_manager.get__credentials()
+        # Get GitHub credentials
+        _username, _token = credentials_manager.get_github_credentials()
         if not _token:
             return ApiResponse(
                 success=False,
-                message=" token not found. Please configure credentials first.",
+                message="GitHub token not found. Please configure GitHub credentials first.",
                 data=None,
             )
 
@@ -438,7 +438,7 @@ async def generate_dataset(
                 data=None,
             )
 
-        content_fetcher = ContentFetcher(_token=_token)
+        content_fetcher = ContentFetcher(github_token=_token)
         dataset_creator = DatasetCreator(huggingface_token=huggingface_token)
 
         # Process by source type
@@ -1292,6 +1292,97 @@ async def crawl_website(
         
     except Exception as e:
         logger.error(f"Error crawling website: {str(e)}")
+        return ApiResponse(success=False, message=f"Error: {str(e)}", data=None)
+
+
+@app.post("/tasks", response_model=ApiResponse, summary="Manage Tasks")
+async def manage_tasks(
+    request: dict, api_key: str = Depends(verify_api_key)
+):
+    """
+    Get task status, list tasks, or cancel tasks.
+    
+    This endpoint provides operations for managing long-running tasks:
+    - `list`: List all active and completed tasks
+    - `status`: Get status for a specific task
+    - `cancel`: Cancel a running task
+    """
+    try:
+        # Import task tracker
+        from utils.task_tracker import TaskTracker
+        
+        action = request.get("action", "").lower()
+        task_id = request.get("task_id")
+        
+        # Basic task tracker
+        task_tracker = TaskTracker()
+        
+        # List tasks
+        if action == "list":
+            tasks = task_tracker.list_resumable_tasks()
+            return ApiResponse(
+                success=True,
+                message=f"Found {len(tasks)} tasks",
+                data={"tasks": tasks}
+            )
+        
+        # Get task status
+        elif action == "status":
+            if not task_id:
+                return ApiResponse(
+                    success=False,
+                    message="Task ID is required for status action",
+                    data=None
+                )
+            
+            task = task_tracker.get_task(task_id)
+            
+            if task:
+                return ApiResponse(
+                    success=True,
+                    message=f"Retrieved status for task '{task_id}'",
+                    data={"task": task}
+                )
+            else:
+                return ApiResponse(
+                    success=False,
+                    message=f"No task found with ID '{task_id}'",
+                    data=None
+                )
+        
+        # Cancel task
+        elif action == "cancel":
+            if not task_id:
+                return ApiResponse(
+                    success=False,
+                    message="Task ID is required for cancel action",
+                    data=None
+                )
+            
+            success = task_tracker.cancel_task(task_id)
+            
+            if success:
+                return ApiResponse(
+                    success=True,
+                    message=f"Task '{task_id}' cancelled successfully",
+                    data=None
+                )
+            else:
+                return ApiResponse(
+                    success=False,
+                    message=f"Failed to cancel task '{task_id}'",
+                    data=None
+                )
+        
+        else:
+            return ApiResponse(
+                success=False,
+                message=f"Invalid action: {action}. Must be 'list', 'status', or 'cancel'",
+                data=None
+            )
+        
+    except Exception as e:
+        logger.error(f"Error managing tasks: {str(e)}")
         return ApiResponse(success=False, message=f"Error: {str(e)}", data=None)
 
 

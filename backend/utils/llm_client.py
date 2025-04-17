@@ -112,7 +112,7 @@ class GitHubInstructionsSchema(BaseModel):
 
 
 class LLMClient:
-    """LLM client for generating instructions for web crawling and GitHub repository fetching."""
+    """LLM client for generating instructions for web crawling, GitHub repository fetching, and chat responses."""
 
     def __init__(
         self, 
@@ -972,3 +972,116 @@ Please provide detailed instructions for repository content extraction in JSON f
         
         logger.warning("All methods failed, using default instructions")
         return default_instructions
+        
+    def generate_response(self, user_message: str) -> str:
+        """
+        Generate a chat response to the user's message.
+        
+        Args:
+            user_message: The user's message
+            
+        Returns:
+            str: The generated response
+        """
+        logger.info(f"Generating chat response using {self.provider}")
+        
+        # Default response if all methods fail
+        default_response = "I'm sorry, I'm having trouble processing your request right now. Please try again later."
+        
+        try:
+            if self.provider == LLMProvider.ANTHROPIC:
+                if ANTHROPIC_AVAILABLE and self.direct_client:
+                    try:
+                        response = self.direct_client.messages.create(
+                            model=self.anthropic_model,
+                            messages=[{"role": "user", "content": user_message}],
+                            system="You are a helpful AI assistant. Provide informative, clear, and concise responses.",
+                            max_tokens=1024,
+                            temperature=0.7
+                        )
+                        return response.content[0].text
+                    except Exception as e:
+                        logger.error(f"Error calling Anthropic API for chat response: {e}")
+                        
+            elif self.provider == LLMProvider.OPENAI:
+                if OPENAI_AVAILABLE and self.direct_client:
+                    try:
+                        response = self.direct_client.chat.completions.create(
+                            model=self.openai_model,
+                            messages=[
+                                {"role": "system", "content": "You are a helpful AI assistant. Provide informative, clear, and concise responses."},
+                                {"role": "user", "content": user_message}
+                            ],
+                            temperature=0.7
+                        )
+                        return response.choices[0].message.content
+                    except Exception as e:
+                        logger.error(f"Error calling OpenAI API for chat response: {e}")
+            
+            # Fall back to simple REST API call
+            try:
+                # Choose endpoint based on provider
+                if self.provider == LLMProvider.ANTHROPIC:
+                    endpoint = "https://api.anthropic.com/v1/messages"
+                    headers = {
+                        "Content-Type": "application/json",
+                        "X-API-Key": self.anthropic_api_key,
+                        "anthropic-version": "2023-06-01"
+                    }
+                    
+                    payload = {
+                        "model": self.anthropic_model,
+                        "messages": [
+                            {"role": "user", "content": user_message}
+                        ],
+                        "system": "You are a helpful AI assistant. Provide informative, clear, and concise responses.",
+                        "max_tokens": 1024,
+                        "temperature": 0.7
+                    }
+                    
+                elif self.provider == LLMProvider.OPENAI:
+                    endpoint = "https://api.openai.com/v1/chat/completions"
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {self.openai_api_key}"
+                    }
+                    
+                    payload = {
+                        "model": self.openai_model,
+                        "messages": [
+                            {"role": "system", "content": "You are a helpful AI assistant. Provide informative, clear, and concise responses."},
+                            {"role": "user", "content": user_message}
+                        ],
+                        "temperature": 0.7
+                    }
+                else:
+                    logger.error(f"Unsupported provider for fallback: {self.provider}")
+                    return default_response
+                
+                # Make API call
+                response = requests.post(
+                    endpoint,
+                    headers=headers,
+                    json=payload,
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    
+                    # Parse based on provider
+                    if self.provider == LLMProvider.ANTHROPIC:
+                        return result.get("content", [{}])[0].get("text", default_response)
+                    elif self.provider == LLMProvider.OPENAI:
+                        return result.get("choices", [{}])[0].get("message", {}).get("content", default_response)
+                
+                logger.warning(f"Failed to get response from {self.provider}: {response.status_code}")
+                return default_response
+                
+            except Exception as e:
+                logger.error(f"Error with fallback REST API call: {e}")
+                return default_response
+                
+        except Exception as e:
+            logger.error(f"Error generating chat response: {e}")
+            return default_response

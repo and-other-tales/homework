@@ -8,6 +8,7 @@ import { Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChatMessages } from '@/components/chat/chat-messages';
 import { TaskProgressPopup } from '@/components/chat/task-progress-popup';
+import { WebSocketClient, ChatMessage, WebSocketEvent } from '@/lib/api/websocket';
 
 type Message = {
   id: string;
@@ -29,74 +30,79 @@ export function ChatInterface() {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(true);
   const [activeTask, setActiveTask] = useState<TaskUpdate | null>(null);
-  const socketRef = useRef<WebSocket | null>(null);
+  const wsClientRef = useRef<WebSocketClient | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Determine WebSocket URL (secure in production, non-secure in dev)
+    // Create WebSocket client
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socketUrl = `${protocol}//${window.location.host}/ws`;
+    wsClientRef.current = new WebSocketClient(socketUrl);
     
-    // Connect to WebSocket
-    socketRef.current = new WebSocket(socketUrl);
-    
-    socketRef.current.onopen = () => {
+    // Register event listeners
+    wsClientRef.current.addEventListener('connected', (event) => {
       setConnected(true);
       setConnecting(false);
-    };
+      toast.success('Connected to chat server');
+    });
     
-    socketRef.current.onclose = () => {
+    wsClientRef.current.addEventListener('disconnected', (event) => {
       setConnected(false);
       setConnecting(false);
-    };
+      toast.error('Disconnected from chat server');
+    });
     
-    socketRef.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
+    wsClientRef.current.addEventListener('message', (event) => {
+      if (event.message) {
+        // Convert to our message format
+        const newMessage: Message = {
+          id: event.message.id || crypto.randomUUID(),
+          type: event.message.role as any, // Map roles to types
+          content: event.message.content,
+          timestamp: event.message.timestamp || new Date().toISOString()
+        };
+        
+        setMessages(prev => [...prev, newMessage]);
+      }
+    });
+    
+    wsClientRef.current.addEventListener('error', (event) => {
+      if (event.message) {
+        toast.error(event.message.content);
+      }
+    });
+    
+    wsClientRef.current.addEventListener('task_update', (event) => {
+      if (event.data && event.data.task) {
+        const task = event.data.task;
+        setActiveTask({
+          task_id: task.id,
+          progress: task.progress || 0,
+          status: task.status,
+          task_type: task.type
+        });
+        
+        // If task completed or failed, clear active task after a delay
+        if (task.status === 'completed' || task.status === 'failed') {
+          setTimeout(() => {
+            setActiveTask(null);
+          }, 5000);
+        }
+      }
+    });
+    
+    // Connect
+    wsClientRef.current.connect().catch(error => {
+      console.error('Failed to connect to WebSocket:', error);
       setConnected(false);
       setConnecting(false);
       toast.error('Failed to connect to chat server');
-    };
-    
-    socketRef.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'task_update') {
-          // Handle task update
-          setActiveTask({
-            task_id: data.task_id,
-            progress: data.progress,
-            status: data.status,
-            task_type: data.task_type
-          });
-          
-          // If task completed or failed, clear active task after a delay
-          if (data.progress === 100 || data.progress < 0) {
-            setTimeout(() => {
-              setActiveTask(null);
-            }, 5000);
-          }
-        } else if (data.type === 'remove_message') {
-          // Remove a specific message by ID
-          setMessages(prev => prev.filter(msg => msg.id !== data.message_id));
-        } else if (['system', 'user', 'assistant', 'error', 'thinking'].includes(data.type)) {
-          // Add message to chat
-          setMessages(prev => [...prev, {
-            id: data.id || crypto.randomUUID(),
-            type: data.type,
-            content: data.content,
-            timestamp: data.timestamp || new Date().toISOString()
-          }]);
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
+    });
     
     // Cleanup on unmount
     return () => {
-      if (socketRef.current) {
-        socketRef.current.close();
+      if (wsClientRef.current) {
+        wsClientRef.current.disconnect();
       }
     };
   }, []);
@@ -110,24 +116,36 @@ export function ChatInterface() {
     event.preventDefault();
     
     if (!input.trim()) return;
-    if (!connected) {
+    if (!connected || !wsClientRef.current) {
       toast.error('Not connected to chat server');
       return;
     }
     
     // Send message to server
-    socketRef.current?.send(input);
+    const success = wsClientRef.current.sendTextMessage(input);
     
-    // Add user message to chat (server will also echo it back)
-    setMessages(prev => [...prev, {
-      id: crypto.randomUUID(),
-      type: 'user',
-      content: input,
-      timestamp: new Date().toISOString()
-    }]);
-    
-    // Clear input
-    setInput('');
+    if (success) {
+      // Add user message to chat immediately (server will also echo it back)
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        type: 'user',
+        content: input,
+        timestamp: new Date().toISOString()
+      }]);
+      
+      // Clear input
+      setInput('');
+      
+      // Add a "thinking" message
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        type: 'thinking',
+        content: 'Thinking...',
+        timestamp: new Date().toISOString()
+      }]);
+    } else {
+      toast.error('Failed to send message');
+    }
   };
   
   const handleClearChat = () => {
@@ -135,14 +153,11 @@ export function ChatInterface() {
   };
   
   const handleCancelTask = () => {
-    if (!activeTask || !socketRef.current) return;
+    if (!activeTask || !wsClientRef.current) return;
     
     try {
-      socketRef.current.send(JSON.stringify({
-        type: 'cancel_task',
-        task_id: activeTask.task_id
-      }));
-      
+      // Send cancel command
+      wsClientRef.current.sendCommand(`task cancel ${activeTask.task_id}`);
       toast.success('Task cancellation requested');
     } catch (error) {
       console.error('Error cancelling task:', error);
