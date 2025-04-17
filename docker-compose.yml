@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # Backend API service
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - backend_data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN:-}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - NEO4J_URI=${NEO4J_URI:-bolt://localhost:7687}
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-}
+    networks:
+      - homework-network
+
+  # Frontend web application
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/public:/app/public
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://api:8080/api
+    depends_on:
+      - api
+    networks:
+      - homework-network
+
+networks:
+  homework-network:
+    driver: bridge
+
+volumes:
+  backend_data:
