@@ -267,12 +267,13 @@ class CredentialsManager:
             password = config.get("neo4j_password")
             logger.info("Using Neo4j credentials from config file")
         
-        # If still not found, check environment variables
-        if not uri and self.env_vars.get("neo4j_uri"):
-            uri = self.env_vars.get("neo4j_uri")
-            username = self.env_vars.get("neo4j_username")
-            password = self.env_vars.get("neo4j_password")
-            logger.info("Using Neo4j credentials from environment variables")
+        # If still not found, check environment variables (try both naming styles)
+        if not uri:
+            uri = self.env_vars.get("neo4j_uri") or self.env_vars.get("NEO4J_URI")
+            username = self.env_vars.get("neo4j_username") or self.env_vars.get("NEO4J_USER")
+            password = self.env_vars.get("neo4j_password") or self.env_vars.get("NEO4J_PASSWORD")
+            if uri and username and password:
+                logger.info("Using Neo4j credentials from environment variables")
         
         if uri and username and password:
             return {
