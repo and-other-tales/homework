@@ -10,7 +10,7 @@ import {
   Network 
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { apiClient } from '../../lib/api/client';
+import { simpleApiClient } from '../../lib/api-client';
 
 type StatusData = {
   server_status: boolean;
@@ -36,7 +36,7 @@ export function DashboardCards() {
     async function fetchStatusData() {
       try {
         // Use our API client for status info
-        const response = await apiClient.getStatus();
+        const response = await simpleApiClient.getStatus();
         if (response.success) {
           const data = response.data || {};
           setStatusData({

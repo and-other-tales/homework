@@ -9,7 +9,7 @@ import {
   Clock, Loader2, RotateCw, Filter 
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiClient, TaskStatus } from '@/lib/api/client';
+import { simpleApiClient, TaskStatus } from '../lib/api-client';
 
 export default function TasksPage() {
   const [loading, setLoading] = useState(true);
@@ -29,7 +29,7 @@ export default function TasksPage() {
   const loadTasks = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.manageTasks({ action: 'list' });
+      const response = await simpleApiClient.manageTasks({ action: 'list' });
       
       if (response.success && response.data?.tasks) {
         setTasks(response.data.tasks);
@@ -54,7 +54,7 @@ export default function TasksPage() {
   // Function to cancel a task
   const handleCancelTask = async (taskId: string) => {
     try {
-      const response = await apiClient.manageTasks({
+      const response = await simpleApiClient.manageTasks({
         action: 'cancel',
         task_id: taskId
       });

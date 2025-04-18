@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { apiClient } from '@/lib/api/client';
+import { simpleApiClient } from '../../lib/api-client';
 
 export function NewTaskModal() {
   const [open, setOpen] = useState(false);
@@ -50,21 +50,27 @@ export function NewTaskModal() {
           return;
         }
         
-        // Create GitHub task using API client
-        // For GitHub repositories, we'll use the generate endpoint
-        const response = await apiClient.generateDataset({
-          source_type: 'repository',
-          source_name: githubRepo,
-          dataset_name: githubDatasetName,
-          description: githubDescription || `Dataset created from ${githubRepo}`,
+        // Use fetch directly to create task
+        const response = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'github_repository',
+            source: githubRepo,
+            dataset_name: githubDatasetName,
+            description: githubDescription || `Dataset created from ${githubRepo}`,
+          }),
         });
         
-        if (response.success) {
+        if (response.ok) {
           toast.success('GitHub repository task created successfully');
           setOpen(false);
           resetForms();
         } else {
-          toast.error(`Failed to create task: ${response.message || 'Unknown error'}`);
+          const error = await response.json();
+          toast.error(`Failed to create task: ${error.message || 'Unknown error'}`);
         }
       } else {
         // Validate Web form
@@ -74,22 +80,29 @@ export function NewTaskModal() {
           return;
         }
         
-        // Create Web task using API client
-        // For web crawling, we'll use the crawl endpoint
-        const response = await apiClient.crawlWebsite({
-          url: webUrl,
-          dataset_name: webDatasetName,
-          description: webDescription || `Dataset created from ${webUrl}`,
-          recursive: recursive,
-          export_to_graph: exportGraph,
+        // Use fetch directly to create task
+        const response = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'web_crawler',
+            source: webUrl,
+            dataset_name: webDatasetName,
+            description: webDescription || `Dataset created from ${webUrl}`,
+            recursive: recursive,
+            export_to_graph: exportGraph,
+          }),
         });
         
-        if (response.success) {
+        if (response.ok) {
           toast.success('Web crawler task created successfully');
           setOpen(false);
           resetForms();
         } else {
-          toast.error(`Failed to create task: ${response.message || 'Unknown error'}`);
+          const error = await response.json();
+          toast.error(`Failed to create task: ${error.message || 'Unknown error'}`);
         }
       }
     } catch (error) {
