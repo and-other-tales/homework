@@ -1,0 +1,76 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+// Direct OpenAI API Chat endpoint
+export async function POST(request: NextRequest) {
+  try {
+    const { message, model } = await request.json();
+    
+    // Get the API key from environment or localStorage
+    // For security reasons, we use a server-side environment variable if available
+    const apiKey = process.env.OPENAI_API_KEY;
+    
+    if (!apiKey) {
+      // Without an API key, return an error message
+      return NextResponse.json(
+        {
+          error: true,
+          message: "OpenAI API key not configured. Please add your API key in the Configuration page."
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Use the specified model or default to gpt-3.5-turbo
+    const chatModel = model || "gpt-3.5-turbo";
+    
+    // Call OpenAI API directly
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: chatModel,
+        messages: [
+          { role: "system", content: "You are a helpful assistant." },
+          { role: "user", content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      })
+    });
+    
+    // Handle API response
+    if (!response.ok) {
+      const errorData = await response.json();
+      return NextResponse.json(
+        {
+          error: true,
+          message: `OpenAI API error: ${errorData.error?.message || response.statusText}`
+        },
+        { status: response.status }
+      );
+    }
+    
+    // Parse and return the OpenAI response
+    const data = await response.json();
+    const assistantResponse = data.choices[0]?.message?.content || "Sorry, I couldn't generate a response.";
+    
+    return NextResponse.json({ 
+      message: assistantResponse,
+      model: chatModel,
+      tokenUsage: data.usage
+    });
+    
+  } catch (error) {
+    console.error('Error in chat API route:', error);
+    return NextResponse.json(
+      { 
+        error: true,
+        message: error instanceof Error ? error.message : "Unknown error processing chat request" 
+      },
+      { status: 500 }
+    );
+  }
+}
