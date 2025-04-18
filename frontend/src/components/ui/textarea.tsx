@@ -1,6 +1,9 @@
 import * as React from "react"
 
-import { cn } from "../../../lib/local-utils"
+// Define cn utility function directly to avoid import issues
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}

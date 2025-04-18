@@ -1,7 +1,10 @@
 import * as React from "react"
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
 
-import { cn } from "../../../lib/local-utils"
+// Define cn utility function directly to avoid import issues
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
 
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,

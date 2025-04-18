@@ -1,7 +1,10 @@
 import * as React from "react"
 import * as SwitchPrimitives from "@radix-ui/react-switch"
 
-import { cn } from "../../../lib/local-utils"
+// Define cn utility function directly to avoid import issues
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
 
 const Switch = React.forwardRef<
   React.ElementRef<typeof SwitchPrimitives.Root>,

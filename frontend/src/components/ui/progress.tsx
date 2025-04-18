@@ -1,7 +1,10 @@
 import * as React from "react"
 import * as ProgressPrimitive from "@radix-ui/react-progress"
 
-import { cn } from "../../../lib/local-utils"
+// Define cn utility function directly to avoid import issues
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
 
 const Progress = React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
