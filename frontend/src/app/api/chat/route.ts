@@ -3,13 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 // Direct OpenAI API Chat endpoint
 export async function POST(request: NextRequest) {
   try {
-    const { message, model, apiKey: clientApiKey } = await request.json();
+    const { message, model, apiKey: clientApiKey, agentMode } = await request.json();
     
     // Get the API key from environment variables first
     // For security reasons, we prefer a server-side environment variable
     let apiKey = process.env.OPENAI_API_KEY;
     
     console.log("Server-side OPENAI_API_KEY available:", !!apiKey);
+    console.log("Agent mode:", agentMode ? "enabled" : "disabled");
     
     // Check if the client is telling us to use the server-side key
     if (clientApiKey === "USE_SERVER_KEY") {
@@ -38,55 +39,106 @@ export async function POST(request: NextRequest) {
     // Use the specified model or default to gpt-3.5-turbo
     const chatModel = model || "gpt-3.5-turbo";
     
+    // Prepare the API endpoint - if agent mode use backend, otherwise direct OpenAI
+    let endpoint = "https://api.openai.com/v1/chat/completions";
+    let headers = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    };
+    let body: any = {
+      model: chatModel,
+      messages: [
+        { role: "system", content: "You are a helpful assistant for the Homework project. You can help with web searches, website crawling, dataset creation from GitHub repositories or websites, and knowledge graph management." },
+        { role: "user", content: message }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000
+    };
+    
+    // If agent mode is enabled, use the backend API instead
+    if (agentMode) {
+      // Use backend API endpoint
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      endpoint = `${backendUrl}/chat`;
+      
+      // Update headers and body for backend API
+      headers = {
+        "Content-Type": "application/json",
+      };
+      
+      body = {
+        message: message,
+        use_agent: true,
+        api_key: apiKey,
+        model: chatModel
+      };
+      
+      console.log("Using backend API endpoint for agent mode:", endpoint);
+    }
+    
     try {
-      // Call OpenAI API directly
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      // Call the appropriate API
+      const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: chatModel,
-          messages: [
-            { role: "system", content: "You are a helpful assistant for the Homework project. You can help with web searches, website crawling, dataset creation from GitHub repositories or websites, and knowledge graph management." },
-            { role: "user", content: message }
-          ],
-          temperature: 0.7,
-          max_tokens: 2000
-        })
+        headers: headers,
+        body: JSON.stringify(body)
       });
       
       // Handle API response
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("OpenAI API error:", errorData);
+        console.error("API error:", errorData);
         return NextResponse.json(
           {
             error: true,
-            message: `OpenAI API error: ${errorData.error?.message || response.statusText}`
+            message: `API error: ${errorData.error?.message || errorData.message || response.statusText}`
           },
           { status: response.status }
         );
       }
       
-      // Parse and return the OpenAI response
+      // Parse the response
       const data = await response.json();
-      const assistantResponse = data.choices[0]?.message?.content || "Sorry, I couldn't generate a response.";
       
-      return NextResponse.json({ 
-        message: assistantResponse,
-        model: chatModel,
-        tokenUsage: data.usage
+      // For agent mode, we need to handle tool calls
+      if (agentMode && data.tool_usage) {
+        return NextResponse.json({
+          message: data.message || "Agent used a tool to assist with your request.",
+          model: chatModel,
+          toolName: data.tool_name,
+          toolUsage: true,
+          toolInput: data.tool_input,
+          toolOutput: data.tool_output,
+          taskId: data.task_id,
+          taskDescription: data.task_description
+        });
+      }
+      
+      // For regular OpenAI response
+      if (!agentMode) {
+        const assistantResponse = data.choices[0]?.message?.content || "Sorry, I couldn't generate a response.";
+        
+        return NextResponse.json({ 
+          message: assistantResponse,
+          model: chatModel,
+          tokenUsage: data.usage
+        });
+      }
+      
+      // For agent mode without tool calls
+      return NextResponse.json({
+        message: data.message || data.content || "Agent processed your request.",
+        model: chatModel
       });
+      
     } catch (apiError) {
-      console.error('Error calling OpenAI API:', apiError);
+      console.error('Error calling API:', apiError);
       return NextResponse.json(
         { 
           error: true,
           message: apiError instanceof Error ? 
-            `Error communicating with OpenAI: ${apiError.message}` : 
-            "Error communicating with OpenAI API"
+            `Error communicating with API: ${apiError.message}` : 
+            "Error communicating with API"
         },
         { status: 500 }
       );

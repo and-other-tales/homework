@@ -5,7 +5,8 @@ import os
 import logging
 import requests
 import asyncio
-from typing import Dict, Any, Optional, List, Union
+import time
+from typing import Dict, Any, Optional, List, Union, Callable
 import traceback
 
 # Setup logging
@@ -24,16 +25,25 @@ def get_agents_sdk():
 class LLMClient:
     """LLM client for generating chat responses using OpenAI API and Agents SDK."""
 
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str = None, credentials_manager = None):
         """
         Initialize the LLM client.
         
         Args:
             api_key: The OpenAI API key
+            credentials_manager: Optional credentials manager to get credentials
         """
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self.model = "gpt-3.5-turbo"  # Default model
         self._agents_mode = False  # Whether to use the Agents SDK
+        self.credentials_manager = credentials_manager
+        
+        if not self.api_key and credentials_manager:
+            # Try to get API key from credentials manager
+            try:
+                self.api_key = credentials_manager.get_openai_key()
+            except Exception as e:
+                logger.error(f"Error getting OpenAI key from credentials manager: {e}")
         
         if not self.api_key:
             logger.warning("No OpenAI API key provided")
@@ -450,6 +460,472 @@ class LLMClient:
             logger.error(f"Error creating agent: {e}")
             logger.error(traceback.format_exc())
             return None
+
+    async def run_agent(self, message: str, progress_callback: Callable = None, options: Dict = None) -> Dict:
+        """
+        Run an agent with automatic tool selection.
+        
+        Args:
+            message: The user message to process
+            progress_callback: Optional callback for progress updates
+            options: Additional options for the agent
+            
+        Returns:
+            Dictionary with the agent result
+        """
+        if not self.api_key:
+            return {
+                "success": False,
+                "message": "OpenAI API key not configured",
+                "data": None
+            }
+            
+        if not self.has_agents_sdk:
+            return {
+                "success": False,
+                "message": "OpenAI Agents SDK not available",
+                "data": None
+            }
+            
+        try:
+            # Create agent with appropriate tools based on message
+            agent = await self._create_agent(message)
+            if not agent:
+                return {
+                    "success": False,
+                    "message": "Failed to initialize agent",
+                    "data": None
+                }
+                
+            # Track progress
+            if progress_callback:
+                progress_callback(10, "Agent initialized")
+                
+            # Run the agent
+            agents = get_agents_sdk()
+            logger.info(f"Running agent with message: {message}")
+            
+            # Run the agent with progress tracking
+            result = await agents.Runner.run(agent, message)
+            
+            # Update progress
+            if progress_callback:
+                progress_callback(100, "Agent task completed")
+                
+            if result and hasattr(result, 'final_output'):
+                return {
+                    "success": True,
+                    "message": "Agent task completed successfully",
+                    "data": {
+                        "response": result.final_output,
+                        "tool_calls": [
+                            {"tool": tc.tool_name, "input": tc.tool_input, "output": tc.tool_output}
+                            for tc in (result.tool_calls if hasattr(result, 'tool_calls') else [])
+                        ]
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "Agent returned invalid response",
+                    "data": None
+                }
+                
+        except Exception as e:
+            logger.error(f"Error running agent: {e}")
+            logger.error(traceback.format_exc())
+            
+            return {
+                "success": False,
+                "message": f"Error: {str(e)}",
+                "data": None
+            }
+            
+    async def run_web_agent(self, message: str, url_patterns: List[str] = None,
+                         max_depth: int = 3, content_filters: List[str] = None,
+                         progress_callback: Callable = None, export_to_graph: bool = False,
+                         graph_name: str = None, dataset_name: str = None,
+                         description: str = None) -> Dict:
+        """
+        Run an agent specialized for web crawling.
+        
+        Args:
+            message: User message with instructions
+            url_patterns: Optional patterns to filter URLs
+            max_depth: Maximum crawl depth
+            content_filters: Optional content filters
+            progress_callback: Optional callback for progress updates
+            export_to_graph: Whether to export results to a knowledge graph
+            graph_name: Name of the knowledge graph to export to
+            dataset_name: Name for the dataset
+            description: Description for the dataset
+            
+        Returns:
+            Dictionary with the agent result
+        """
+        if not self.api_key:
+            return {
+                "success": False,
+                "message": "OpenAI API key not configured",
+                "data": None
+            }
+            
+        if not self.has_agents_sdk:
+            return {
+                "success": False,
+                "message": "OpenAI Agents SDK not available",
+                "data": None
+            }
+            
+        try:
+            # Create crawler agent
+            agents = get_agents_sdk()
+            
+            # Create tools
+            crawler_tool = self._create_crawler_tool()
+            web_search_tool = agents.WebSearchTool()
+            dataset_tool = self._create_dataset_creation_tool() if dataset_name else None
+            knowledge_graph_tool = self._create_knowledge_graph_tool() if export_to_graph else None
+            
+            tools = [web_search_tool, crawler_tool]
+            if dataset_tool:
+                tools.append(dataset_tool)
+            if knowledge_graph_tool:
+                tools.append(knowledge_graph_tool)
+                
+            # Create specialized crawler agent
+            agent = agents.Agent(
+                name="Web Crawler Assistant",
+                instructions=(
+                    "You are a specialized web crawler assistant. "
+                    "Your primary task is to analyze the user's request, find relevant websites, "
+                    "and extract the requested information by crawling websites. "
+                    "Follow these steps:\n"
+                    "1. Analyze the user's message to understand what they want to find\n"
+                    "2. Use web search to identify the most relevant websites\n"
+                    "3. Crawl those websites to extract information, paying attention to any special instructions\n"
+                    f"4. {('Create a dataset named ' + dataset_name + ' with the extracted content') if dataset_name else 'Summarize the findings'}\n"
+                    f"5. {('Export the data to the knowledge graph named ' + graph_name) if export_to_graph and graph_name else 'Provide a concise summary of the results'}\n"
+                    "\nWhen crawling websites, be thoughtful about the depth and scope. Use the supplied options for URL patterns, "
+                    "max depth, and content filters."
+                ),
+                tools=tools
+            )
+            
+            # Track progress
+            if progress_callback:
+                progress_callback(10, "Web crawler agent initialized")
+                
+            # Create specialized system message with task details
+            system_prompt = (
+                f"Task: Web crawling to extract information\n"
+                f"User message: {message}\n"
+                f"Options:\n"
+                f"- URL patterns: {', '.join(url_patterns) if url_patterns else 'None'}\n"
+                f"- Max depth: {max_depth}\n"
+                f"- Content filters: {', '.join(content_filters) if content_filters else 'None'}\n"
+                f"- Dataset name: {dataset_name if dataset_name else 'None'}\n"
+                f"- Export to graph: {graph_name if export_to_graph else 'No'}\n"
+                f"\nPlease process this web crawling task according to these specifications."
+            )
+            
+            # Run the agent with progress tracking
+            # Use periodic updates for progress callback
+            if progress_callback:
+                progress_callback(20, "Starting web crawling task")
+                
+                async def update_progress():
+                    progress = 20
+                    while progress < 90:
+                        await asyncio.sleep(3)  # Update every 3 seconds
+                        progress += 5
+                        progress_callback(progress, "Processing web crawling task")
+                
+                # Start progress updates in background
+                progress_task = asyncio.create_task(update_progress())
+                
+            # Run the agent
+            result = await agents.Runner.run(agent, system_prompt)
+            
+            # Update progress
+            if progress_callback:
+                progress_callback(100, "Web crawling task completed")
+                
+            if result and hasattr(result, 'final_output'):
+                return {
+                    "success": True,
+                    "message": "Web crawling task completed successfully",
+                    "data": {
+                        "response": result.final_output,
+                        "tool_calls": [
+                            {"tool": tc.tool_name, "input": tc.tool_input, "output": tc.tool_output}
+                            for tc in (result.tool_calls if hasattr(result, 'tool_calls') else [])
+                        ],
+                        "dataset_name": dataset_name,
+                        "graph_name": graph_name if export_to_graph else None
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "Web crawling agent returned invalid response",
+                    "data": None
+                }
+                
+        except Exception as e:
+            logger.error(f"Error running web agent: {e}")
+            logger.error(traceback.format_exc())
+            
+            return {
+                "success": False,
+                "message": f"Error: {str(e)}",
+                "data": None
+            }
+            
+    async def run_github_agent(self, message: str, progress_callback: Callable = None,
+                             export_to_graph: bool = False, graph_name: str = None,
+                             dataset_name: str = None, description: str = None) -> Dict:
+        """
+        Run an agent specialized for GitHub operations.
+        
+        Args:
+            message: User message with instructions
+            progress_callback: Optional callback for progress updates
+            export_to_graph: Whether to export results to a knowledge graph
+            graph_name: Name of the knowledge graph to export to
+            dataset_name: Name for the dataset
+            description: Description for the dataset
+            
+        Returns:
+            Dictionary with the agent result
+        """
+        if not self.api_key:
+            return {
+                "success": False,
+                "message": "OpenAI API key not configured",
+                "data": None
+            }
+            
+        if not self.has_agents_sdk:
+            return {
+                "success": False,
+                "message": "OpenAI Agents SDK not available",
+                "data": None
+            }
+            
+        try:
+            # Create GitHub agent
+            agents = get_agents_sdk()
+            
+            # Create tools
+            web_search_tool = agents.WebSearchTool()
+            dataset_tool = self._create_dataset_creation_tool()
+            knowledge_graph_tool = self._create_knowledge_graph_tool() if export_to_graph else None
+            
+            tools = [web_search_tool, dataset_tool]
+            if knowledge_graph_tool:
+                tools.append(knowledge_graph_tool)
+                
+            # Create specialized GitHub agent
+            agent = agents.Agent(
+                name="GitHub Assistant",
+                instructions=(
+                    "You are a specialized GitHub assistant. "
+                    "Your primary task is to analyze the user's request, find relevant GitHub repositories, "
+                    "and create datasets from these repositories. "
+                    "Follow these steps:\n"
+                    "1. Analyze the user's message to understand what GitHub content they need\n"
+                    "2. Use web search to identify the most relevant GitHub repositories or organizations\n"
+                    "3. Create a dataset with the content from these repositories\n"
+                    f"4. {('Export the data to the knowledge graph named ' + graph_name) if export_to_graph and graph_name else 'Provide a concise summary of the results'}\n"
+                    "\nBe thorough in your analysis and dataset creation."
+                ),
+                tools=tools
+            )
+            
+            # Track progress
+            if progress_callback:
+                progress_callback(10, "GitHub agent initialized")
+                
+            # Create specialized system message with task details
+            system_prompt = (
+                f"Task: GitHub dataset creation\n"
+                f"User message: {message}\n"
+                f"Options:\n"
+                f"- Dataset name: {dataset_name if dataset_name else 'Auto-generated name'}\n"
+                f"- Dataset description: {description if description else 'Auto-generated description'}\n"
+                f"- Export to graph: {graph_name if export_to_graph else 'No'}\n"
+                f"\nPlease process this GitHub task according to these specifications."
+            )
+            
+            # Run the agent with progress tracking
+            # Use periodic updates for progress callback
+            if progress_callback:
+                progress_callback(20, "Starting GitHub task")
+                
+                async def update_progress():
+                    progress = 20
+                    while progress < 90:
+                        await asyncio.sleep(3)  # Update every 3 seconds
+                        progress += 5
+                        progress_callback(progress, "Processing GitHub task")
+                
+                # Start progress updates in background
+                progress_task = asyncio.create_task(update_progress())
+                
+            # Run the agent
+            result = await agents.Runner.run(agent, system_prompt)
+            
+            # Update progress
+            if progress_callback:
+                progress_callback(100, "GitHub task completed")
+                
+            if result and hasattr(result, 'final_output'):
+                return {
+                    "success": True,
+                    "message": "GitHub task completed successfully",
+                    "data": {
+                        "response": result.final_output,
+                        "tool_calls": [
+                            {"tool": tc.tool_name, "input": tc.tool_input, "output": tc.tool_output}
+                            for tc in (result.tool_calls if hasattr(result, 'tool_calls') else [])
+                        ],
+                        "dataset_name": dataset_name,
+                        "graph_name": graph_name if export_to_graph else None
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "GitHub agent returned invalid response",
+                    "data": None
+                }
+                
+        except Exception as e:
+            logger.error(f"Error running GitHub agent: {e}")
+            logger.error(traceback.format_exc())
+            
+            return {
+                "success": False,
+                "message": f"Error: {str(e)}",
+                "data": None
+            }
+            
+    async def run_knowledge_graph_agent(self, message: str, graph_name: str = None,
+                                      progress_callback: Callable = None) -> Dict:
+        """
+        Run an agent specialized for knowledge graph operations.
+        
+        Args:
+            message: User message with instructions
+            graph_name: Name of the knowledge graph
+            progress_callback: Optional callback for progress updates
+            
+        Returns:
+            Dictionary with the agent result
+        """
+        if not self.api_key:
+            return {
+                "success": False,
+                "message": "OpenAI API key not configured",
+                "data": None
+            }
+            
+        if not self.has_agents_sdk:
+            return {
+                "success": False,
+                "message": "OpenAI Agents SDK not available",
+                "data": None
+            }
+            
+        try:
+            # Create knowledge graph agent
+            agents = get_agents_sdk()
+            
+            # Create tools
+            web_search_tool = agents.WebSearchTool()
+            knowledge_graph_tool = self._create_knowledge_graph_tool()
+            
+            tools = [web_search_tool, knowledge_graph_tool]
+                
+            # Create specialized knowledge graph agent
+            agent = agents.Agent(
+                name="Knowledge Graph Assistant",
+                instructions=(
+                    "You are a specialized knowledge graph assistant. "
+                    "Your primary task is to analyze the user's request and manage knowledge graphs. "
+                    "You can create, view, list, or delete knowledge graphs, as well as provide "
+                    "information about knowledge graph structure and usage. "
+                    "Be thorough in your analysis and knowledge graph operations. "
+                    "Always explain what you're doing and why in clear terms."
+                ),
+                tools=tools
+            )
+            
+            # Track progress
+            if progress_callback:
+                progress_callback(10, "Knowledge graph agent initialized")
+                
+            # Create specialized system message with task details
+            system_prompt = (
+                f"Task: Knowledge graph operation\n"
+                f"User message: {message}\n"
+                f"Options:\n"
+                f"- Graph name: {graph_name if graph_name else 'Not specified'}\n"
+                f"\nPlease process this knowledge graph task according to these specifications."
+            )
+            
+            # Run the agent with progress tracking
+            # Use periodic updates for progress callback
+            if progress_callback:
+                progress_callback(20, "Starting knowledge graph task")
+                
+                async def update_progress():
+                    progress = 20
+                    while progress < 90:
+                        await asyncio.sleep(2)  # Update every 2 seconds
+                        progress += 10
+                        progress_callback(progress, "Processing knowledge graph task")
+                
+                # Start progress updates in background
+                progress_task = asyncio.create_task(update_progress())
+                
+            # Run the agent
+            result = await agents.Runner.run(agent, system_prompt)
+            
+            # Update progress
+            if progress_callback:
+                progress_callback(100, "Knowledge graph task completed")
+                
+            if result and hasattr(result, 'final_output'):
+                return {
+                    "success": True,
+                    "message": "Knowledge graph task completed successfully",
+                    "data": {
+                        "response": result.final_output,
+                        "tool_calls": [
+                            {"tool": tc.tool_name, "input": tc.tool_input, "output": tc.tool_output}
+                            for tc in (result.tool_calls if hasattr(result, 'tool_calls') else [])
+                        ],
+                        "graph_name": graph_name
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "Knowledge graph agent returned invalid response",
+                    "data": None
+                }
+                
+        except Exception as e:
+            logger.error(f"Error running knowledge graph agent: {e}")
+            logger.error(traceback.format_exc())
+            
+            return {
+                "success": False,
+                "message": f"Error: {str(e)}",
+                "data": None
+            }
 
     async def generate_response(self, user_message: str) -> str:
         """

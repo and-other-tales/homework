@@ -5,7 +5,7 @@ import time
 import os
 import ssl
 import uuid
-from fastapi import FastAPI, HTTPException, Depends, Header, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Depends, Header, Request, Response, WebSocket, WebSocketDisconnect, APIRouter
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -101,6 +101,10 @@ app = FastAPI(
     description="Scrape websites to create datasets and knowledge graphs for machine learning and data analysis",
     version="1.0.0",
 )
+
+# Include agent routes
+from .agent_routes import router as agent_router
+app.include_router(agent_router, prefix="/api", tags=["Agent"])
 
 # Initialize templates (commented out as templates are not needed)
 # templates = Jinja2Templates(directory="web/templates")

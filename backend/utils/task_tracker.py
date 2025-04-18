@@ -56,6 +56,162 @@ class TaskTracker:
         
         logger.info(f"Created task {task_id}: {description}")
         return task_id
+        
+    def add_task(self, task_id, task_type, status="queued", details=None):
+        """
+        Add a task with a specified ID.
+        
+        Args:
+            task_id (str): The task ID to use
+            task_type (str): Type of task (e.g., 'web', 'github', 'knowledge_graph')
+            status (str): Initial task status
+            details (dict, optional): Additional task details
+            
+        Returns:
+            bool: Success status
+        """
+        try:
+            # Create task data structure
+            task_data = {
+                "id": task_id,
+                "type": task_type,
+                "status": status,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                "progress": 0,
+                "details": details or {},
+                "message": f"Task {status}"
+            }
+            
+            # Save task data
+            task_file = self.tasks_dir / f"{task_id}.json"
+            with open(task_file, "w") as f:
+                json.dump(task_data, f, indent=2)
+            
+            logger.info(f"Added task {task_id} of type {task_type}")
+            return True
+        except Exception as e:
+            logger.error(f"Error adding task {task_id}: {e}")
+            return False
+            
+    def update_task(self, task_id, status=None, progress=None, message=None, result=None):
+        """
+        Update task with new status, progress, message, or result.
+        
+        Args:
+            task_id (str): Task ID
+            status (str, optional): New task status
+            progress (float, optional): Current progress (0-100)
+            message (str, optional): Status message
+            result (dict, optional): Task result data
+            
+        Returns:
+            bool: Success status
+        """
+        task_file = self.tasks_dir / f"{task_id}.json"
+        
+        if not task_file.exists():
+            logger.error(f"Task {task_id} not found")
+            return False
+        
+        try:
+            # Load current task data
+            with open(task_file, "r") as f:
+                task_data = json.load(f)
+            
+            # Update fields
+            if status:
+                task_data["status"] = status
+            
+            if progress is not None:
+                task_data["progress"] = progress
+            
+            if message:
+                task_data["message"] = message
+                
+            if result:
+                task_data["result"] = result
+                
+            # Always update the timestamp
+            task_data["updated_at"] = datetime.now().isoformat()
+            
+            # Save updated task data
+            with open(task_file, "w") as f:
+                json.dump(task_data, f, indent=2)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error updating task {task_id}: {e}")
+            return False
+            
+    def list_tasks(self, status=None, task_type=None, limit=10):
+        """
+        List tasks with optional filtering.
+        
+        Args:
+            status (str, optional): Filter by status
+            task_type (str, optional): Filter by task type
+            limit (int): Maximum number of tasks to return
+            
+        Returns:
+            list: List of task data dictionaries
+        """
+        tasks = []
+        
+        try:
+            for task_file in self.tasks_dir.glob("*.json"):
+                try:
+                    with open(task_file, "r") as f:
+                        task_data = json.load(f)
+                    
+                    # Apply filters
+                    if status and task_data.get("status") != status:
+                        continue
+                        
+                    if task_type and task_data.get("type") != task_type:
+                        continue
+                    
+                    # Add friendly time since created/updated
+                    created_dt = datetime.fromisoformat(task_data["created_at"])
+                    updated_dt = datetime.fromisoformat(task_data.get("updated_at", task_data["created_at"]))
+                    
+                    time_since_created = (datetime.now() - created_dt).total_seconds()
+                    time_since_updated = (datetime.now() - updated_dt).total_seconds()
+                    
+                    # Format time since
+                    if time_since_created < 60:
+                        task_data["created_ago"] = f"{int(time_since_created)} seconds ago"
+                    elif time_since_created < 3600:
+                        task_data["created_ago"] = f"{int(time_since_created / 60)} minutes ago"
+                    else:
+                        task_data["created_ago"] = f"{int(time_since_created / 3600)} hours ago"
+                        
+                    if time_since_updated < 60:
+                        task_data["updated_ago"] = f"{int(time_since_updated)} seconds ago"
+                    elif time_since_updated < 3600:
+                        task_data["updated_ago"] = f"{int(time_since_updated / 60)} minutes ago"
+                    else:
+                        task_data["updated_ago"] = f"{int(time_since_updated / 3600)} hours ago"
+                    
+                    tasks.append(task_data)
+                    
+                except Exception as e:
+                    logger.error(f"Error reading task file {task_file.name}: {e}")
+                    continue
+            
+            # Sort by updated_at, most recent first
+            tasks.sort(
+                key=lambda x: datetime.fromisoformat(x.get("updated_at", x["created_at"])), 
+                reverse=True
+            )
+            
+            # Apply limit
+            return tasks[:limit]
+            
+        except Exception as e:
+            logger.error(f"Error listing tasks: {e}")
+            return []
     
     def update_task_progress(self, task_id, progress, stage=None, stage_progress=None, status=None):
         """
