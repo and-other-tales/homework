@@ -3,7 +3,8 @@ module.exports = {
   roots: ['<rootDir>/tests'],
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    '^@/(.*)$': '<rootDir>/frontend/src/$1'
+    '^@/(.*)$': '<rootDir>/frontend/src/$1',
+    '^../../frontend/src/(.*)$': '<rootDir>/frontend/src/$1'
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testMatch: [
@@ -18,5 +19,10 @@ module.exports = {
     'frontend/src/**/*.{js,jsx,ts,tsx}',
     '!**/node_modules/**',
     '!**/vendor/**'
+  ],
+  moduleDirectories: [
+    'node_modules',
+    '<rootDir>',
+    '<rootDir>/frontend/node_modules'
   ]
 };
