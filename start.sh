@@ -19,6 +19,56 @@ print_message() {
   esac
 }
 
+# Create necessary directory structure for backend
+setup_backend_directories() {
+  print_message "yellow" "📁 Creating necessary directory structure..."
+  
+  # Create the web/static directory for static files
+  mkdir -p backend/web/static
+  
+  # Create other required directories
+  mkdir -p backend/web/templates
+  mkdir -p backend/temp
+  mkdir -p backend/logs
+  
+  print_message "green" "✅ Directory structure created successfully."
+}
+
+# Create necessary init files for Python modules
+setup_python_modules() {
+  print_message "yellow" "📝 Setting up Python modules..."
+  
+  # Create __init__.py files in directories to make them proper Python modules
+  touch backend/web/__init__.py
+  
+  # Create minimal web/crawler.py if it doesn't exist
+  if [ ! -f "backend/web/crawler.py" ]; then
+    print_message "yellow" "📝 Creating minimal web crawler module..."
+    cat > backend/web/crawler.py <<EOF
+# Basic web crawler module
+def shutdown_executor():
+    """Shutdown function to cleanly close crawler resources."""
+    pass
+EOF
+  fi
+  
+  print_message "green" "✅ Python modules setup complete."
+}
+
+# Perform backend checks and ensure dependencies are installed
+check_backend_dependencies() {
+  print_message "yellow" "🔍 Checking backend dependencies..."
+  
+  # Check for required pip packages and install if missing
+  source backend/venv/bin/activate 2>/dev/null || source backend/venv/Scripts/activate
+  
+  # Check for specific packages
+  python -c "import fastapi" 2>/dev/null || pip install fastapi uvicorn
+  python -c "import starlette" 2>/dev/null || pip install starlette
+  
+  print_message "green" "✅ Backend dependencies verified."
+}
+
 # Function to start the application in Docker mode
 start_docker_mode() {
   print_message "yellow" "=============================================="
@@ -93,6 +143,10 @@ start_local_mode() {
     exit 1
   fi
 
+  # Setup required directories and modules
+  setup_backend_directories
+  setup_python_modules
+
   # Start backend
   print_message "green" "🔧 Starting backend server..."
   cd backend
@@ -108,6 +162,9 @@ start_local_mode() {
   else
     source venv/bin/activate || source venv/Scripts/activate
   fi
+  
+  # Ensure all dependencies are installed
+  check_backend_dependencies
   
   # Start the backend server in the background
   print_message "green" "🚀 Starting backend server..."
