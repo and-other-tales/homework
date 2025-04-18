@@ -23,6 +23,15 @@ ENV NODE_ENV production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get update -y || (sleep 2 && apt-get update -y) && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
