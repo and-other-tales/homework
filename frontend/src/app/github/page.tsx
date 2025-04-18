@@ -51,25 +51,18 @@ export default function GitHubPage() {
         }
       }
       
-      // Mock repository data (in a real app, you'd fetch this from the API)
-      const mockRepo: Repository = {
-        id: 123456789,
-        name: repoName.split('/').pop() || '',
-        full_name: repoName,
-        html_url: `https://github.com/${repoName}`,
-        description: 'Repository description would appear here',
-        language: 'TypeScript',
-        stargazers_count: 123,
-        forks_count: 45,
-        open_issues_count: 7,
-        updated_at: new Date().toISOString()
-      };
+      // Fetch repository data from the backend API
+      const response = await fetch(`/api/github/repository?repo=${repoName}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch repository information');
+      }
+      const repoData = await response.json();
       
-      setSelectedRepo(mockRepo);
-      toast.success(`Repository ${mockRepo.name} fetched successfully`);
+      setSelectedRepo(repoData);
+      toast.success(`Repository ${repoData.name} fetched successfully`);
       
       // Generate dataset name from repo name
-      setDatasetName(`${mockRepo.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-dataset`);
+      setDatasetName(`${repoData.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-dataset`);
     } catch (error) {
       console.error('Error fetching repository:', error);
       toast.error('Failed to fetch repository information');
@@ -88,17 +81,15 @@ export default function GitHubPage() {
     setLoadingOrg(true);
     
     try {
-      // In a real app, you'd use the API client to fetch org repos
-      // const response = await apiClient.fetchOrganizationRepos(orgName);
+      // Fetch organization repositories from the backend API
+      const response = await fetch(`/api/github/organization?org=${orgName}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch organization information');
+      }
+      const orgData = await response.json();
       
-      // Mock successful response with more realistic repo count
-      const repoCount = orgName.toLowerCase() === 'langchain-ai' ? 148 : 
-                       orgName.toLowerCase() === 'microsoft' ? 1260 :
-                       orgName.toLowerCase() === 'google' ? 2580 : 
-                       Math.floor(Math.random() * 100) + 50;
-                       
       toast.success(`Organization ${orgName} fetched successfully`);
-      toast.info(`Found ${repoCount} repositories in ${orgName}`);
+      toast.info(`Found ${orgData.length} repositories in ${orgName}`);
       
       // Generate dataset name from org name
       setDatasetName(`${orgName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-dataset`);
