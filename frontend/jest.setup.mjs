@@ -84,6 +84,23 @@ global.__interopRequireDefault = obj => {
   return obj && obj.__esModule ? obj : { default: obj };
 };
 
+// Make sure React is properly available
 if (!global.React) {
   global.React = require('react');
 }
+
+// This helps with React module resolution issues
+jest.mock('react', () => {
+  const originalReact = jest.requireActual('react');
+  return {
+    ...originalReact,
+    // Add any React functionality that tests might use
+    useRef: jest.fn(() => ({ current: { open: jest.fn() } })),
+    useState: jest.fn((initial) => [initial, jest.fn()]),
+    useEffect: jest.fn((fn) => fn()),
+    useContext: jest.fn(),
+    createContext: jest.fn(() => ({
+      Provider: ({ children }) => children
+    }))
+  };
+});

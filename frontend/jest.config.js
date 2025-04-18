@@ -5,17 +5,20 @@ const config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    // Fix path mapping for imports from frontend in tests
-    // Match both Windows and Unix-style paths with a more reliable pattern
+    // Fix path mapping for frontend modules with proper regex
     '^../../frontend/src/(.*)$': '<rootDir>/src/$1',
-    // Mock Node modules that might be missing
-    '^react$': 'react',
-    '^react-dom$': 'react-dom',
+    // Direct module mappings
+    '^react$': require.resolve('react'),
+    '^react-dom$': require.resolve('react-dom'),
+    // Mock modules
     '^sonner$': '<rootDir>/__mocks__/sonner.js',
     '^next/navigation$': '<rootDir>/__mocks__/next/navigation.js',
     '^next/link$': '<rootDir>/__mocks__/next/link.js',
     '^next/image$': '<rootDir>/__mocks__/next/image.js',
     '^next/router$': '<rootDir>/__mocks__/next/router.js',
+    // API module mocks (add these for tests that need them)
+    '^../../frontend/src/lib/api/websocket$': '<rootDir>/__mocks__/lib/api/websocket.js',
+    '^../../frontend/src/lib/api/client$': '<rootDir>/__mocks__/lib/api/client.js',
     // Mock Babel runtime helpers
     '@babel/runtime/helpers/interopRequireDefault': '<rootDir>/__mocks__/babel-runtime/interopRequireDefault.js',
     '@babel/runtime/helpers/defineProperty': '<rootDir>/__mocks__/babel-runtime/defineProperty.js',
@@ -40,7 +43,11 @@ const config = {
     '<rootDir>/node_modules/',
     '<rootDir>/.next/'
   ],
-  moduleDirectories: ['node_modules', '<rootDir>', '../node_modules'],
+  moduleDirectories: [
+    'node_modules', 
+    '<rootDir>', 
+    '../node_modules'
+  ],
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx'],
   testMatch: [
     '**/__tests__/**/*.+(ts|tsx|js|jsx)',
