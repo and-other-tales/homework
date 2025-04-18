@@ -255,11 +255,27 @@ async def status():
     
     Returns information about the server's running state, host address, and port.
     """
+    # Check for missing required configurations
+    from config.credentials_manager import CredentialsManager
+    credentials_manager = CredentialsManager()
+    
+    missing_configs = []
+    
+    # Check for HuggingFace token
+    hf_username, hf_token = credentials_manager.get_huggingface_credentials()
+    if not hf_token:
+        missing_configs.append("huggingface_token")
+    
     return {
-        "status": "running" if server_status.running else "stopped",
-        "host": server_status.host,
-        "port": server_status.port,
-        "version": app.version
+        "success": True,
+        "message": "API server is running",
+        "data": {
+            "status": "running" if server_status.running else "stopped",
+            "host": server_status.host,
+            "port": server_status.port,
+            "version": app.version,
+            "missing_configs": missing_configs
+        }
     }
 
 @app.get("/health", response_model=dict, summary="Health Check", tags=["Monitoring"])
@@ -1050,6 +1066,37 @@ async def manage_tasks(
         logger.error(f"Error managing tasks: {str(e)}")
         return ApiResponse(success=False, message=f"Error: {str(e)}", data=None)
 
+
+@app.post("/api/configuration", response_model=ApiResponse, summary="Update Configuration")
+async def set_configuration(config: dict):
+    """Update application configuration."""
+    try:
+        # Import handler
+        from api.configuration_handler import ConfigurationHandler, ConfigurationModel
+        
+        # Convert dict to model
+        config_model = ConfigurationModel(**config)
+        
+        # Update configuration
+        handler = ConfigurationHandler()
+        return handler.update_configuration(config_model)
+    except Exception as e:
+        logger.error(f"Error updating configuration: {e}")
+        return ApiResponse(success=False, message=f"Error: {str(e)}", data=None)
+
+@app.get("/api/configuration", response_model=ApiResponse, summary="Get Configuration Status")
+async def get_configuration():
+    """Get current configuration status."""
+    try:
+        # Import handler
+        from api.configuration_handler import ConfigurationHandler
+        
+        # Get configuration status
+        handler = ConfigurationHandler()
+        return handler.get_configuration_status()
+    except Exception as e:
+        logger.error(f"Error retrieving configuration: {e}")
+        return ApiResponse(success=False, message=f"Error: {str(e)}", data=None)
 
 @app.post("/knowledge_graph", response_model=ApiResponse, summary="Manage Knowledge Graphs")
 async def manage_knowledge_graph(
