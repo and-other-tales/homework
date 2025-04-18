@@ -3,7 +3,12 @@ module.exports = {
   roots: ['<rootDir>/../tests'],
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    '^@/(.*)$': '<rootDir>/src/$1'
+    '^@/(.*)$': '<rootDir>/src/$1',
+    // Mock Next.js modules
+    '^next/router$': '<rootDir>/__mocks__/next/router.js',
+    '^next/navigation$': '<rootDir>/__mocks__/next/navigation.js',
+    '^next/link$': '<rootDir>/__mocks__/next/link.js',
+    '^next/image$': '<rootDir>/__mocks__/next/image.js'
   },
   setupFilesAfterEnv: ['<rootDir>/../tests/setup.js'],
   testMatch: [
@@ -15,11 +20,7 @@ module.exports = {
     '^.+\\.(js|jsx)$': 'babel-jest'
   },
   moduleDirectories: ['node_modules', '<rootDir>/src'],
-  collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
-    '!**/node_modules/**',
-    '!**/vendor/**'
-  ],
-  // Use this to ensure proper resolution of paths in Windows
-  testPathIgnorePatterns: ['/node_modules/']
-};
+  transformIgnorePatterns: [
+    '/node_modules/(?!next|@next)/'
+  ]
+}
