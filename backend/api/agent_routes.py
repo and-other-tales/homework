@@ -2,7 +2,7 @@ import logging
 import uuid
 import time
 from typing import Dict, List, Optional, Any, Union
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
 
