@@ -505,10 +505,17 @@ export default function ConfigurationPage() {
 
             <div className="space-y-2">
               <div className="flex items-center">
-                <Label htmlFor="neo4j_uri">Neo4j URI</Label>
-                {configStatus.neo4j_configured && (
-                  <span className="ml-2 text-green-600">✓</span>
-                )}
+                <Label htmlFor="neo4j_uri" className="flex items-center">
+                  Neo4j URI
+                  {configStatus.neo4j_configured && (
+                    <span className="ml-2 inline-flex items-center">
+                      <span className="text-green-600 mr-1">✓</span>
+                      <span className="text-xs bg-green-100 text-green-800 rounded-full px-2 py-0.5">
+                        Configured
+                      </span>
+                    </span>
+                  )}
+                </Label>
               </div>
               <div className="relative">
                 <Input
@@ -530,10 +537,17 @@ export default function ConfigurationPage() {
 
             <div className="space-y-2">
               <div className="flex items-center">
-                <Label htmlFor="neo4j_username">Neo4j Username</Label>
-                {configStatus.neo4j_configured && (
-                  <span className="ml-2 text-green-600">✓</span>
-                )}
+                <Label htmlFor="neo4j_username" className="flex items-center">
+                  Neo4j Username
+                  {configStatus.neo4j_configured && (
+                    <span className="ml-2 inline-flex items-center">
+                      <span className="text-green-600 mr-1">✓</span>
+                      <span className="text-xs bg-green-100 text-green-800 rounded-full px-2 py-0.5">
+                        Configured
+                      </span>
+                    </span>
+                  )}
+                </Label>
               </div>
               <div className="relative">
                 <Input
@@ -550,10 +564,17 @@ export default function ConfigurationPage() {
 
             <div className="space-y-2">
               <div className="flex items-center">
-                <Label htmlFor="neo4j_password">Neo4j Password</Label>
-                {configStatus.neo4j_configured && (
-                  <span className="ml-2 text-green-600">✓</span>
-                )}
+                <Label htmlFor="neo4j_password" className="flex items-center">
+                  Neo4j Password
+                  {configStatus.neo4j_configured && (
+                    <span className="ml-2 inline-flex items-center">
+                      <span className="text-green-600 mr-1">✓</span>
+                      <span className="text-xs bg-green-100 text-green-800 rounded-full px-2 py-0.5">
+                        Configured
+                      </span>
+                    </span>
+                  )}
+                </Label>
               </div>
               <div className="relative">
                 <Input

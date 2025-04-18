@@ -154,15 +154,24 @@ class ChatHandler:
     async def _generate_llm_response(self, user_message: str) -> str:
         """Generate a response using the LLM."""
         if not self.llm_client:
-            return "LLM service is not available."
+            return "LLM service is not available. Please configure your OpenAI API key in the Configuration page."
         
         try:
-            # Call LLM asynchronously
-            response = await asyncio.to_thread(
-                self.llm_client.generate_response,
-                user_message
-            )
-            return response
+            # Call the async generate_response method directly if it exists
+            if hasattr(self.llm_client, 'generate_response') and callable(self.llm_client.generate_response):
+                if asyncio.iscoroutinefunction(self.llm_client.generate_response):
+                    # If generate_response is already async
+                    response = await self.llm_client.generate_response(user_message)
+                else:
+                    # If generate_response is synchronous, run in thread
+                    response = await asyncio.to_thread(
+                        self.llm_client.generate_response,
+                        user_message
+                    )
+                return response
+            else:
+                logger.error("LLM client does not have a generate_response method")
+                return "LLM service is misconfigured. Please check the logs."
         except Exception as e:
             logger.error(f"LLM error: {str(e)}", exc_info=True)
             return f"I encountered an error: {str(e)}"
