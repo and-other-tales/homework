@@ -312,6 +312,19 @@ class CredentialsManager:
         username = None
         password = None
         
+        # First check environment variables as these are often most up-to-date
+        env_uri = os.environ.get("NEO4J_URI")
+        env_user = os.environ.get("NEO4J_USER")
+        env_pass = os.environ.get("NEO4J_PASSWORD")
+        
+        if env_uri and env_user and env_pass:
+            logger.info(f"Retrieved Neo4j credentials from environment variables: {env_user}@{env_uri}")
+            return {
+                "uri": env_uri,
+                "username": env_user,
+                "password": env_pass
+            }
+        
         # Try to get credentials from keyring if available
         if self.has_keyring:
             try:
@@ -319,35 +332,71 @@ class CredentialsManager:
                 username = self.keyring.get_password(self.SERVICE_NAME, self.NEO4J_USER_KEY)
                 password = self.keyring.get_password(self.SERVICE_NAME, self.NEO4J_PASSWORD_KEY)
                 if uri and username and password:
-                    logger.debug("Retrieved Neo4j credentials from keyring")
+                    logger.info(f"Retrieved Neo4j credentials from keyring: {username}@{uri}")
+                    return {
+                        "uri": uri,
+                        "username": username,
+                        "password": password
+                    }
             except Exception as e:
-                logger.warning(f"Error accessing keyring: {e}")
+                logger.warning(f"Error accessing keyring for Neo4j credentials: {e}")
                 # Don't retry keyring operations for this session
                 global HAS_KEYRING
                 HAS_KEYRING = False
                 self.has_keyring = False
         
         # If not found in keyring, try config file
-        if not uri and "neo4j_uri" in config:
+        if "neo4j_uri" in config and "neo4j_username" in config and "neo4j_password" in config:
             uri = config.get("neo4j_uri")
             username = config.get("neo4j_username")
             password = config.get("neo4j_password")
-            logger.debug("Using Neo4j credentials from config file")
-        
-        # If still not found, check environment variables (try both naming styles)
-        if not uri:
-            uri = self.env_vars.get("neo4j_uri") or self.env_vars.get("NEO4J_URI")
-            username = self.env_vars.get("neo4j_username") or self.env_vars.get("NEO4J_USER")
-            password = self.env_vars.get("neo4j_password") or self.env_vars.get("NEO4J_PASSWORD")
             if uri and username and password:
-                logger.debug("Using Neo4j credentials from environment variables")
+                logger.info(f"Retrieved Neo4j credentials from config file: {username}@{uri}")
+                return {
+                    "uri": uri,
+                    "username": username,
+                    "password": password
+                }
         
+        # If still not found, check environment variables in env_vars (from .env file)
+        uri = self.env_vars.get("neo4j_uri") or self.env_vars.get("NEO4J_URI")
+        username = self.env_vars.get("neo4j_username") or self.env_vars.get("NEO4J_USER")
+        password = self.env_vars.get("neo4j_password") or self.env_vars.get("NEO4J_PASSWORD")
         if uri and username and password:
+            logger.info(f"Retrieved Neo4j credentials from .env file: {username}@{uri}")
             return {
                 "uri": uri,
                 "username": username,
                 "password": password
             }
+        
+        # As a last resort, check .env file directly
+        try:
+            env_file = Path(".env")
+            if env_file.exists():
+                logger.info("Checking .env file directly for Neo4j credentials")
+                env_content = env_file.read_text()
+                import re
+                uri_match = re.search(r'NEO4J_URI=(.+)', env_content)
+                user_match = re.search(r'NEO4J_USER=(.+)', env_content)
+                pass_match = re.search(r'NEO4J_PASSWORD=(.+)', env_content)
+                
+                if uri_match and user_match and pass_match:
+                    uri = uri_match.group(1).strip()
+                    username = user_match.group(1).strip()
+                    password = pass_match.group(1).strip()
+                    
+                    if uri and username and password:
+                        logger.info(f"Found Neo4j credentials directly in .env file: {username}@{uri}")
+                        return {
+                            "uri": uri,
+                            "username": username,
+                            "password": password
+                        }
+        except Exception as e:
+            logger.warning(f"Error reading .env file directly: {e}")
+        
+        logger.warning("Neo4j credentials not found in any location")
         return None
         
     def save_openai_key(self, key):

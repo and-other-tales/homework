@@ -1101,6 +1101,38 @@ async def get_configuration():
     except Exception as e:
         logger.error(f"Error retrieving configuration: {e}")
         return ApiResponse(success=False, message=f"Error: {str(e)}", data=None)
+        
+@app.get("/api/neo4j-info", response_model=ApiResponse, summary="Get Neo4j Connection Information")
+async def get_neo4j_info():
+    """Get Neo4j connection information (uri and username only, not password)."""
+    try:
+        # Import credentials manager
+        from config.credentials_manager import CredentialsManager
+        
+        # Get Neo4j credentials (sensitive info will be filtered)
+        credentials_manager = CredentialsManager()
+        neo4j_creds = credentials_manager.get_neo4j_credentials()
+        
+        if not neo4j_creds:
+            return ApiResponse(
+                success=False,
+                message="Neo4j credentials not configured",
+                data=None
+            )
+        
+        # Return only non-sensitive information
+        return ApiResponse(
+            success=True,
+            message="Neo4j connection information retrieved",
+            data={
+                "uri": neo4j_creds.get("uri", "bolt://localhost:7687"),
+                "username": neo4j_creds.get("username", "neo4j")
+                # Password is deliberately not included
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving Neo4j information: {e}")
+        return ApiResponse(success=False, message=f"Error: {str(e)}", data=None)
 
 @app.post("/knowledge_graph", response_model=ApiResponse, summary="Manage Knowledge Graphs")
 async def manage_knowledge_graph(

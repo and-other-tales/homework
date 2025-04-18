@@ -116,6 +116,44 @@ export default function ConfigurationPage() {
         
         setConfig(newConfig);
       }
+      
+      // Try to get Neo4j configuration from server if local storage doesn't have it
+      // This is to ensure Neo4j fields are populated even if they were saved but not in localStorage
+      const getNeo4jInfo = async () => {
+        try {
+          const response = await fetch('/api/configuration');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data && data.data.neo4j_configured) {
+              console.log("Neo4j is configured according to server, retrieving connection info");
+              
+              // Retrieve Neo4j info from API
+              try {
+                const response = await fetch('/api/get-neo4j-info');
+                if (response.ok) {
+                  const neo4jData = await response.json();
+                  if (neo4jData.success && neo4jData.data) {
+                    setConfig(prev => ({
+                      ...prev,
+                      neo4j_uri: neo4jData.data.uri || prev.neo4j_uri,
+                      neo4j_username: neo4jData.data.username || prev.neo4j_username,
+                      // We don't populate the password field for security
+                    }));
+                  }
+                }
+              } catch (error) {
+                // Silent error, we'll just use the default values
+                console.warn("Could not retrieve Neo4j connection info:", error);
+              }
+            }
+          }
+        } catch (error) {
+          // Silent error, we'll just use the default values
+          console.warn("Could not check Neo4j configuration status:", error);
+        }
+      };
+      
+      getNeo4jInfo();
     } catch (error) {
       console.error('Error loading saved form state:', error);
       // Don't show toast for this error as it's not critical
@@ -427,24 +465,35 @@ export default function ConfigurationPage() {
                   }
                 </p>
               </div>
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2"
-                onClick={handleDeployNeo4j}
-                disabled={loading || deployingNeo4j}
-              >
-                {deployingNeo4j ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Deploying...
-                  </>
-                ) : (
-                  <>
-                    <Database className="h-4 w-4" />
-                    Deploy Neo4j Docker
-                  </>
+              <div className="flex gap-2">
+                {configStatus.neo4j_configured && (
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setConfigStatus(prev => ({...prev, neo4j_configured: false}))}
+                  >
+                    Edit Configuration
+                  </Button>
                 )}
-              </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                  onClick={handleDeployNeo4j}
+                  disabled={loading || deployingNeo4j}
+                >
+                  {deployingNeo4j ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Deploying...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="h-4 w-4" />
+                      Deploy Neo4j Docker
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
             
             {deployingNeo4j && (
@@ -468,7 +517,8 @@ export default function ConfigurationPage() {
                   placeholder="bolt://localhost:7687"
                   value={config.neo4j_uri}
                   onChange={handleInputChange}
-                  className={configStatus.neo4j_configured ? "border-green-300" : ""}
+                  readOnly={configStatus.neo4j_configured}
+                  className={configStatus.neo4j_configured ? "border-green-300 bg-gray-50" : ""}
                 />
                 {configStatus.neo4j_configured && (
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -492,7 +542,8 @@ export default function ConfigurationPage() {
                   placeholder="neo4j"
                   value={config.neo4j_username}
                   onChange={handleInputChange}
-                  className={configStatus.neo4j_configured ? "border-green-300" : ""}
+                  readOnly={configStatus.neo4j_configured}
+                  className={configStatus.neo4j_configured ? "border-green-300 bg-gray-50" : ""}
                 />
               </div>
             </div>
@@ -512,7 +563,8 @@ export default function ConfigurationPage() {
                   placeholder={configStatus.neo4j_configured ? "••••••••••••••••" : "password"}
                   value={config.neo4j_password}
                   onChange={handleInputChange}
-                  className={configStatus.neo4j_configured ? "border-green-300" : ""}
+                  readOnly={configStatus.neo4j_configured}
+                  className={configStatus.neo4j_configured ? "border-green-300 bg-gray-50" : ""}
                 />
                 {configStatus.neo4j_configured && (
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
