@@ -87,7 +87,14 @@ export function SetupWizard() {
 
   // Check if required environment variables are missing
   useEffect(() => {
-    // Always set it to open for testing
+    // Check if setup was previously completed
+    const setupCompleted = localStorage.getItem('setup_completed') === 'true';
+    if (setupCompleted) {
+      // Don't show the wizard if setup was completed
+      return;
+    }
+    
+    // Show the wizard for initial setup
     setOpen(true);
 
     const checkEnvironment = async () => {
@@ -185,44 +192,77 @@ export function SetupWizard() {
     setDeployingNeo4j(true);
     
     try {
-      toast.loading('Deploying Neo4j Docker container...');
+      const loadingToast = toast.loading('Deploying Neo4j Docker container...');
+      
+      console.log('Starting Neo4j deployment...');
       
       // Call the API to deploy Neo4j
       const response = await fetch('/api/deploy-neo4j', {
         method: 'POST',
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to deploy Neo4j container');
+      // Get response text for diagnostic purposes
+      const responseText = await response.text();
+      console.log('Deploy Neo4j response:', response.status, responseText);
+      
+      // Parse the response as JSON if possible
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e);
+        throw new Error(`Failed to parse response: ${responseText}`);
       }
       
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || `Failed to deploy Neo4j container (status ${response.status})`);
+      }
       
       if (data.success) {
+        toast.dismiss(loadingToast);
         toast.success('Neo4j deployed successfully!');
+        
+        console.log('Neo4j deployment successful with data:', data);
         
         // Update the Neo4j configuration fields with the values from the response
         const updatedItems = [...configItems];
         
-        // Find and update the Neo4j URI field
+        // Find indexes of Neo4j fields
         const uriIndex = updatedItems.findIndex(item => item.key === 'neo4j_uri');
-        if (uriIndex !== -1) {
-          updatedItems[uriIndex].value = data.data.uri || 'bolt://localhost:7687';
-        }
-        
-        // Find and update the Neo4j username field
         const usernameIndex = updatedItems.findIndex(item => item.key === 'neo4j_username');
-        if (usernameIndex !== -1) {
-          updatedItems[usernameIndex].value = data.data.username || 'neo4j';
-        }
-        
-        // Find and update the Neo4j password field
         const passwordIndex = updatedItems.findIndex(item => item.key === 'neo4j_password');
-        if (passwordIndex !== -1) {
-          updatedItems[passwordIndex].value = data.data.password || 'password';
-        }
         
-        setConfigItems(updatedItems);
+        // Update all fields at once if we have the data
+        if (data.data) {
+          if (uriIndex !== -1) {
+            updatedItems[uriIndex].value = data.data.uri || 'bolt://localhost:7687';
+          }
+          
+          if (usernameIndex !== -1) {
+            updatedItems[usernameIndex].value = data.data.username || 'neo4j';
+          }
+          
+          if (passwordIndex !== -1) {
+            updatedItems[passwordIndex].value = data.data.password || 'password';
+          }
+          
+          setConfigItems(updatedItems);
+          
+          // Also persist the updates to localStorage (except for password)
+          const persistItems = updatedItems.map(item => {
+            if (item.type === 'password') {
+              return {...item, value: ''};
+            }
+            return item;
+          });
+          
+          localStorage.setItem('setup_wizard_state', JSON.stringify({
+            configItems: persistItems,
+            step
+          }));
+        } else {
+          throw new Error('Neo4j deployment succeeded but no configuration data was returned');
+        }
       } else {
         throw new Error(data.message || 'Unknown error deploying Neo4j');
       }
@@ -231,7 +271,6 @@ export function SetupWizard() {
       toast.error(error instanceof Error ? error.message : 'Failed to deploy Neo4j');
     } finally {
       setDeployingNeo4j(false);
-      toast.dismiss();
     }
   };
 
@@ -294,6 +333,9 @@ export function SetupWizard() {
         return acc;
       }, {} as Record<string, string>);
       
+      // Show a loading toast
+      toast.loading('Saving configuration...');
+      
       // Save configuration via API
       const response = await fetch('/api/configuration', {
         method: 'POST',
@@ -305,19 +347,29 @@ export function SetupWizard() {
       
       if (response.ok) {
         // Configuration saved successfully
+        toast.success('Configuration saved successfully!');
         setOpen(false);
+        
+        // Cache a flag in localStorage to prevent reopening the wizard
+        localStorage.setItem('setup_completed', 'true');
         
         // Clear the wizard state from localStorage
         localStorage.removeItem('setup_wizard_state');
         
-        // Reload the page to apply new configuration
-        window.location.reload();
+        // Wait a moment before reloading
+        setTimeout(() => {
+          // Reload the page to apply new configuration
+          window.location.reload();
+        }, 1500);
       } else {
         const data = await response.json();
-        console.error('Failed to save configuration:', data.message);
+        const errorMessage = data.message || 'Failed to save configuration';
+        console.error('Failed to save configuration:', errorMessage);
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Error saving configuration:', error);
+      toast.error('Error saving configuration');
     } finally {
       setLoading(false);
     }
