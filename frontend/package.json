@@ -7,11 +7,11 @@
     "build": "./node_modules/.bin/next dev",
     "start": "./node_modules/.bin/next start",
     "lint": "./node_modules/.bin/next lint",
-    "test": "cd .. && npm run test",
-    "test:watch": "cd .. && npm run test:watch",
-    "test:coverage": "cd .. && npm run test:coverage",
-    "test:frontend": "cd .. && npm run test:frontend",
-    "test:integration": "cd .. && npm run test:integration"
+    "test": "node ../run-tests.js",
+    "test:watch": "node ../run-tests.js --watch",
+    "test:coverage": "node ../run-tests.js --coverage",
+    "test:frontend": "node ../run-tests.js --testMatch='**/tests/frontend/**/*.test.(ts|tsx|js|jsx)'",
+    "test:integration": "node ../run-tests.js --testMatch='**/tests/integration/**/*.test.(ts|tsx|js|jsx)'"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.0.4",
