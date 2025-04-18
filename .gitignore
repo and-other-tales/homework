@@ -5,6 +5,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+**node_modules**
 # C extensions
 *.so
 CLAUDE.md
