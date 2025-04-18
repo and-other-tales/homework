@@ -36,13 +36,13 @@ export async function GET(request: NextRequest) {
     // If backend request fails, handle it gracefully
     console.warn("Backend request failed, using mock task data");
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch tasks from backend' },
+      { error: true, message: 'Failed to fetch tasks from backend' },
       { status: response.status }
     );
   } catch (error) {
     console.error('Error in tasks API route:', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { error: true, message: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -77,13 +77,13 @@ export async function POST(request: NextRequest) {
     // If backend request fails, handle it gracefully
     console.warn("Backend task action failed, using mock response");
     return NextResponse.json(
-      { success: false, message: 'Failed to perform task action on backend' },
+      { error: true, message: 'Failed to perform task action on backend' },
       { status: response.status }
     );
   } catch (error) {
     console.error('Error in tasks POST route:', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { error: true, message: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
