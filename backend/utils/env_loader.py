@@ -14,11 +14,26 @@ def load_environment_variables():
         dict: Dictionary of environment variables
     """
     # Try to load from .env file if it exists
-    env_file = Path(".env")
-    if env_file.exists():
-        logger.info(f"Loading environment variables from {env_file.absolute()}")
-        dotenv.load_dotenv(env_file)
-        logger.info("Loaded environment variables from .env file")
+    env_paths = [
+        Path(".env"),
+        Path("../.env"),
+        Path(os.path.expanduser("~/.env")),
+        Path("/app/.env")  # For Docker environments
+    ]
+    
+    for env_file in env_paths:
+        if env_file.exists():
+            logger.info(f"Loading environment variables from {env_file.absolute()}")
+            dotenv.load_dotenv(str(env_file.absolute()))
+            logger.info(f"Loaded environment variables from {env_file}")
+    
+    # Special check for OPENAI_API_KEY in environment
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    if openai_key:
+        masked_key = openai_key[:4] + "..." + openai_key[-4:] if len(openai_key) > 8 else "***"
+        logger.info(f"Found OPENAI_API_KEY in environment: {masked_key}")
+    else:
+        logger.warning("OPENAI_API_KEY not found in environment")
 
     # Get environment variables relevant to the application
     env_vars = {
@@ -38,6 +53,6 @@ def load_environment_variables():
     
     # Specifically log if OPENAI_API_KEY is found
     if "openai_api_key" in present_vars:
-        logger.info("OPENAI_API_KEY is set in environment")
+        logger.info("OPENAI_API_KEY is set in environment dictionary")
 
     return env_vars

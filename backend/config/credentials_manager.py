@@ -428,12 +428,25 @@ class CredentialsManager:
         config = self._load_config()
         key = None
         
+        # Try to get key from environment variable first (highest priority)
+        env_key = os.environ.get("OPENAI_API_KEY")
+        if env_key:
+            logger.info("Using OpenAI key from OS environment variables")
+            return env_key
+        
+        # Try to get key from our loaded env vars
+        env_var_key = self.env_vars.get("openai_api_key")
+        if env_var_key:
+            logger.info("Using OpenAI key from loaded environment variables")
+            return env_var_key
+        
         # Try to get key from keyring if available
         if self.has_keyring:
             try:
                 key = self.keyring.get_password(self.SERVICE_NAME, self.OPENAI_KEY)
                 if key:
-                    logger.debug("Retrieved OpenAI key from keyring")
+                    logger.info("Retrieved OpenAI key from keyring")
+                    return key
             except Exception as e:
                 logger.warning(f"Error accessing keyring: {e}")
                 # Don't retry keyring operations for this session
@@ -442,18 +455,33 @@ class CredentialsManager:
                 self.has_keyring = False
         
         # If not found in keyring, try config file
-        if not key and "openai_key" in config:
+        if "openai_key" in config:
             key = config.get("openai_key")
-            logger.debug("Using OpenAI key from config file")
-        
-        # If still not found, check environment variable (try both casing styles)
-        if not key:
-            # Try both lowercase and uppercase environment variable names
-            key = self.env_vars.get("openai_api_key") or self.env_vars.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
             if key:
-                logger.debug("Using OpenAI key from environment variables")
+                logger.info("Using OpenAI key from config file")
+                return key
         
-        return key
+        # As a last resort, check .env file directly
+        try:
+            env_file = Path(".env")
+            if env_file.exists():
+                logger.info("Checking .env file directly for OpenAI API key")
+                env_content = env_file.read_text()
+                import re
+                key_match = re.search(r'OPENAI_API_KEY=(.+)', env_content)
+                
+                if key_match:
+                    key = key_match.group(1).strip()
+                    if key:
+                        logger.info("Found OpenAI API key directly in .env file")
+                        # Set it in the environment so it's available for future calls
+                        os.environ["OPENAI_API_KEY"] = key
+                        return key
+        except Exception as e:
+            logger.warning(f"Error reading .env file directly: {e}")
+        
+        logger.warning("OpenAI API key not found in any location")
+        return None
 
     def _load_config(self):
         """Load configuration from file."""
