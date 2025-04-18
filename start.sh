@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Homework Application Startup Script
-# This script starts the homework application stack using Docker Compose
+# This script can start the application in Docker or directly on the host
 
 # Enable strict mode
 set -e
@@ -19,21 +19,163 @@ print_message() {
   esac
 }
 
-print_message "yellow" "=============================================="
-print_message "yellow" "🚀 Starting Homework Application"
-print_message "yellow" "=============================================="
+# Function to start the application in Docker mode
+start_docker_mode() {
+  print_message "yellow" "=============================================="
+  print_message "yellow" "🚀 Starting Homework Application (Docker Mode)"
+  print_message "yellow" "=============================================="
 
-# Check if Docker is installed
-if ! command -v docker &> /dev/null; then
-  print_message "red" "❌ Docker is not installed. Please install Docker first."
-  exit 1
-fi
+  # Check if Docker is installed
+  if ! command -v docker &> /dev/null; then
+    print_message "red" "❌ Docker is not installed. Please install Docker first."
+    exit 1
+  fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null; then
-  print_message "red" "❌ Docker Compose is not installed. Please install Docker Compose first."
-  exit 1
-fi
+  # Check if Docker Compose is installed
+  if ! command -v docker-compose &> /dev/null; then
+    print_message "red" "❌ Docker Compose is not installed. Please install Docker Compose first."
+    exit 1
+  fi
+
+  # Add network connectivity check
+  print_message "yellow" "🔍 Checking network connectivity..."
+  if ! ping -c 1 deb.debian.org &> /dev/null; then
+    print_message "red" "❌ Network connectivity issue detected: Cannot reach Debian package repositories."
+    print_message "yellow" "- Check your internet connection"
+    print_message "yellow" "- If using a VPN, try disabling it temporarily"
+    print_message "yellow" "- Ensure Docker has proper network access"
+    print_message "yellow" "- You can try manually setting DNS in Docker by editing /etc/docker/daemon.json:"
+    print_message "yellow" "  {\"dns\": [\"8.8.8.8\", \"8.8.4.4\"]}"
+    exit 1
+  fi
+
+  # Build and start the containers
+  print_message "green" "🔨 Building and starting containers..."
+  docker-compose up -d --build
+
+  # Check if containers are running
+  if [ $? -eq 0 ]; then
+    print_message "green" "✅ Homework application is now running!"
+    print_message "green" "📊 Dashboard: http://localhost:3000"
+    print_message "green" "💬 Chat Interface: http://localhost:3000/chat"
+    print_message "green" "🔧 API: http://localhost:8080/api"
+
+    # Check for missing API keys
+    if ! grep -q "HUGGINGFACE_TOKEN=.*[^[:space:]]" "$ENV_FILE"; then
+      print_message "yellow" "⚠️  Warning: HUGGINGFACE_TOKEN is not set in .env file."
+      print_message "yellow" "   Some features might not work correctly."
+    fi
+  else
+    print_message "red" "❌ Failed to start Homework application."
+    exit 1
+  fi
+
+  print_message "yellow" "=============================================="
+  print_message "yellow" "To stop the application, run: docker-compose down"
+  print_message "yellow" "=============================================="
+}
+
+# Function to start the application in local mode
+start_local_mode() {
+  print_message "yellow" "=============================================="
+  print_message "yellow" "🚀 Starting Homework Application (Local Mode)"
+  print_message "yellow" "=============================================="
+
+  # Check for Python
+  if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+    print_message "red" "❌ Python is not installed. Please install Python first."
+    exit 1
+  fi
+
+  # Check for Node.js
+  if ! command -v npm &> /dev/null; then
+    print_message "red" "❌ Node.js/npm is not installed. Please install Node.js first."
+    exit 1
+  fi
+
+  # Start backend
+  print_message "green" "🔧 Starting backend server..."
+  cd backend
+  
+  # Check if virtual environment exists, create if not
+  if [ ! -d "venv" ]; then
+    print_message "yellow" "📝 Creating Python virtual environment..."
+    python3 -m venv venv 2>/dev/null || python -m venv venv
+    
+    print_message "yellow" "📝 Installing Python dependencies..."
+    source venv/bin/activate || source venv/Scripts/activate
+    pip install -r requirements.txt
+  else
+    source venv/bin/activate || source venv/Scripts/activate
+  fi
+  
+  # Start the backend server in the background
+  print_message "green" "🚀 Starting backend server..."
+  python main.py web &
+  BACKEND_PID=$!
+  
+  # Store the PID for later cleanup
+  echo $BACKEND_PID > .backend_pid
+  
+  cd ..
+  
+  # Start frontend
+  print_message "green" "🎨 Starting frontend development server..."
+  cd frontend
+  
+  # Install dependencies if needed
+  if [ ! -d "node_modules" ]; then
+    print_message "yellow" "📝 Installing Node.js dependencies..."
+    npm install
+  fi
+  
+  # Start the frontend server in the background
+  npm run dev &
+  FRONTEND_PID=$!
+  
+  # Store the PID for later cleanup
+  echo $FRONTEND_PID > .frontend_pid
+  
+  cd ..
+  
+  print_message "green" "✅ Homework application is now running!"
+  print_message "green" "📊 Dashboard: http://localhost:3000"
+  print_message "green" "💬 Chat Interface: http://localhost:3000/chat"
+  print_message "green" "🔧 API: http://localhost:8080/api"
+  
+  print_message "yellow" "=============================================="
+  print_message "yellow" "Application is running in the foreground."
+  print_message "yellow" "Press Ctrl+C to stop all servers."
+  print_message "yellow" "=============================================="
+  
+  # Set up trap to kill processes on exit
+  trap cleanup INT TERM
+  
+  # Wait for user to press Ctrl+C
+  wait
+}
+
+# Function to clean up background processes
+cleanup() {
+  print_message "yellow" "Shutting down servers..."
+  
+  # Kill backend if running
+  if [ -f "backend/.backend_pid" ]; then
+    BACKEND_PID=$(cat backend/.backend_pid)
+    kill $BACKEND_PID 2>/dev/null || true
+    rm backend/.backend_pid
+  fi
+  
+  # Kill frontend if running
+  if [ -f "frontend/.frontend_pid" ]; then
+    FRONTEND_PID=$(cat frontend/.frontend_pid)
+    kill $FRONTEND_PID 2>/dev/null || true
+    rm frontend/.frontend_pid
+  fi
+  
+  print_message "green" "Application has been stopped."
+  exit 0
+}
 
 # Check if .env file exists, create if not
 ENV_FILE=".env"
@@ -64,41 +206,11 @@ fi
 # Run in the homework-app directory
 cd "$(dirname "$0")"
 
-# Add network connectivity check
-print_message "yellow" "🔍 Checking network connectivity..."
-if ! ping -c 1 deb.debian.org &> /dev/null; then
-  print_message "red" "❌ Network connectivity issue detected: Cannot reach Debian package repositories."
-  print_message "yellow" "- Check your internet connection"
-  print_message "yellow" "- If using a VPN, try disabling it temporarily"
-  print_message "yellow" "- Ensure Docker has proper network access"
-  print_message "yellow" "- You can try manually setting DNS in Docker by editing /etc/docker/daemon.json:"
-  print_message "yellow" "  {\"dns\": [\"8.8.8.8\", \"8.8.4.4\"]}"
-  exit 1
-fi
-
-# Build and start the containers
-print_message "green" "🔨 Building and starting containers..."
-docker-compose up -d --build
-
-# Check if containers are running
-if [ $? -eq 0 ]; then
-  print_message "green" "✅ Homework application is now running!"
-  print_message "green" "📊 Dashboard: http://localhost:3000"
-  print_message "green" "💬 Chat Interface: http://localhost:3000/chat"
-  print_message "green" "🔧 API: http://localhost:8080/api"
-
-  # Check for missing API keys
-  if ! grep -q "HUGGINGFACE_TOKEN=.*[^[:space:]]" "$ENV_FILE"; then
-    print_message "yellow" "⚠️  Warning: HUGGINGFACE_TOKEN is not set in .env file."
-    print_message "yellow" "   Some features might not work correctly."
-  fi
+# Check command line arguments
+if [ "$1" == "--docker" ]; then
+  start_docker_mode
 else
-  print_message "red" "❌ Failed to start Homework application."
-  exit 1
+  start_local_mode
 fi
-
-print_message "yellow" "=============================================="
-print_message "yellow" "To stop the application, run: docker-compose down"
-print_message "yellow" "=============================================="
 
 exit 0
