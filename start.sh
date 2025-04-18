@@ -19,40 +19,42 @@ print_message() {
   esac
 }
 
-# Create necessary directory structure for backend
-setup_backend_directories() {
-  print_message "yellow" "📁 Creating necessary directory structure..."
+# Check for required backend directories and files
+check_backend_structure() {
+  print_message "yellow" "🔍 Checking backend structure..."
   
-  # Create the web/static directory for static files
-  mkdir -p backend/web/static
+  local missing_files=false
   
-  # Create other required directories
-  mkdir -p backend/web/templates
-  mkdir -p backend/temp
-  mkdir -p backend/logs
-  
-  print_message "green" "✅ Directory structure created successfully."
-}
-
-# Create necessary init files for Python modules
-setup_python_modules() {
-  print_message "yellow" "📝 Setting up Python modules..."
-  
-  # Create __init__.py files in directories to make them proper Python modules
-  touch backend/web/__init__.py
-  
-  # Create minimal web/crawler.py if it doesn't exist
-  if [ ! -f "backend/web/crawler.py" ]; then
-    print_message "yellow" "📝 Creating minimal web crawler module..."
-    cat > backend/web/crawler.py <<EOF
-# Basic web crawler module
-def shutdown_executor():
-    """Shutdown function to cleanly close crawler resources."""
-    pass
-EOF
+  # Check for critical directories
+  if [ ! -d "backend/web/static" ]; then
+    print_message "red" "❌ Missing directory: backend/web/static"
+    missing_files=true
   fi
   
-  print_message "green" "✅ Python modules setup complete."
+  if [ ! -d "backend/web/templates" ]; then
+    print_message "red" "❌ Missing directory: backend/web/templates"
+    missing_files=true
+  fi
+  
+  # Check for critical Python modules
+  if [ ! -f "backend/web/__init__.py" ]; then
+    print_message "red" "❌ Missing file: backend/web/__init__.py"
+    missing_files=true
+  fi
+  
+  if [ ! -f "backend/web/crawler.py" ]; then
+    print_message "red" "❌ Missing file: backend/web/crawler.py"
+    missing_files=true
+  fi
+  
+  if [ "$missing_files" = true ]; then
+    print_message "red" "❌ Some required files are missing!"
+    print_message "yellow" "ℹ️ Please check your installation or clone the repository again:"
+    print_message "yellow" "   git clone https://github.com/yourusername/homework.git"
+    exit 1
+  fi
+  
+  print_message "green" "✅ Backend structure looks good."
 }
 
 # Activate virtual environment with better platform detection
@@ -183,9 +185,8 @@ start_local_mode() {
     exit 1
   fi
 
-  # Setup required directories and modules
-  setup_backend_directories
-  setup_python_modules
+  # Check backend structure
+  check_backend_structure
 
   # Start backend
   print_message "green" "🔧 Starting backend server..."
@@ -197,8 +198,14 @@ start_local_mode() {
     python3 -m venv venv 2>/dev/null || python -m venv venv
   fi
   
-  # Ensure all dependencies are installed
-  check_backend_dependencies
+  # Activate virtual environment
+  activate_virtual_env
+  
+  # Install dependencies if requirements.txt exists
+  if [ -f "requirements.txt" ]; then
+    print_message "yellow" "📦 Checking dependencies..."
+    pip install -r requirements.txt
+  fi
   
   # Start the backend server in the background
   print_message "green" "🚀 Starting backend server..."
