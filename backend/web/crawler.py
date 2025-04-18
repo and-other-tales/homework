@@ -196,17 +196,25 @@ class WebCrawler:
         # Update last access time
         self.domain_last_access[domain] = time.time()
     
-    def _extract_urls(self, soup, base_url):
+    def _extract_urls(self, soup, base_url, url_patterns=None, current_depth=0, max_depth=None):
         """
         Extract all valid URLs from a BeautifulSoup object.
         
         Args:
             soup: BeautifulSoup object
             base_url: Base URL of the website
+            url_patterns: List of regex patterns for URLs to include
+            current_depth: Current depth from start URL
+            max_depth: Maximum depth to crawl
             
         Returns:
             list: List of valid URLs
         """
+        # Check if we've reached max depth
+        if max_depth is not None and current_depth >= max_depth:
+            logger.info(f"Reached maximum depth ({max_depth}), stopping extraction of new URLs")
+            return []
+
         urls = []
         for link in soup.find_all('a', href=True):
             url = link['href']
@@ -214,10 +222,24 @@ class WebCrawler:
                 absolute_url = self._get_absolute_url(url, base_url)
                 
                 # Check robots.txt permissions
-                if self._can_fetch(absolute_url):
-                    urls.append(absolute_url)
-                else:
+                if not self._can_fetch(absolute_url):
                     logger.debug(f"Skipping URL disallowed by robots.txt: {absolute_url}")
+                    continue
+                
+                # Apply URL pattern filtering if specified
+                if url_patterns:
+                    import re
+                    matches = False
+                    for pattern in url_patterns:
+                        if re.search(pattern, absolute_url):
+                            matches = True
+                            break
+                    
+                    if not matches:
+                        logger.debug(f"Skipping URL that doesn't match patterns: {absolute_url}")
+                        continue
+                
+                urls.append(absolute_url)
         
         # Remove duplicates while preserving order
         unique_urls = []
@@ -576,7 +598,8 @@ class WebCrawler:
             return default_instructions
             
     def crawl_website(self, start_url, recursive=False, max_pages=None, progress_callback=None, 
-                      _cancellation_event=None, cleanup_temp=False, user_instructions=None, use_ai_guidance=False):
+                      _cancellation_event=None, cleanup_temp=False, user_instructions=None, use_ai_guidance=False,
+                      max_depth=None, content_filters=None, url_patterns=None):
         """
         Crawl a website starting from the provided URL.
         
@@ -589,6 +612,9 @@ class WebCrawler:
             cleanup_temp: Whether to clean up temporary files after crawling
             user_instructions: User's description of what to scrape (used with AI guidance)
             use_ai_guidance: Whether to use AI to guide the crawling process
+            max_depth: Maximum depth to crawl from the start URL (None means no limit)
+            content_filters: List of keywords or patterns to filter content by (inclusive)
+            url_patterns: List of regex patterns for URLs to include
             
         Returns:
             list: List of crawled page data
@@ -624,8 +650,8 @@ class WebCrawler:
         # Reset visited URLs
         self.visited_urls = set()
         
-        # Queue of URLs to visit
-        to_visit = [start_url]
+        # Queue of URLs to visit (with depth tracking)
+        to_visit = [(start_url, 0)]  # (url, depth)
         
         # List of page data
         results = []
@@ -647,8 +673,13 @@ class WebCrawler:
                 progress_percent = min(95, page_count / max(1, len(to_visit) + page_count) * 100)
                 progress_callback(progress_percent, f"Crawled {page_count} pages, {len(to_visit)} in queue")
             
-            # Get next URL to visit
-            url = to_visit.pop(0)
+            # Get next URL to visit (and its depth if available)
+            url_info = to_visit.pop(0)
+            if isinstance(url_info, tuple) and len(url_info) == 2:
+                url, current_depth = url_info
+            else:
+                url = url_info
+                current_depth = 0
             
             # Skip if already visited
             if url in self.visited_urls:
@@ -659,6 +690,8 @@ class WebCrawler:
             
             # Fetch the page
             page_data = self.fetch_page(url)
+            # Add depth information
+            page_data["depth"] = current_depth
             
             if page_data["status"] == "success":
                 # Convert HTML to markdown
@@ -730,10 +763,35 @@ class WebCrawler:
                 # Increment page count
                 page_count += 1
                 
+                # Apply content filtering if specified
+                if content_filters and page_data.get("markdown"):
+                    content_match = False
+                    for filter_pattern in content_filters:
+                        if filter_pattern.lower() in page_data["markdown"].lower():
+                            content_match = True
+                            logger.info(f"Content filter '{filter_pattern}' matched for {url}")
+                            break
+                    
+                    if not content_match:
+                        logger.info(f"Page content didn't match any content filters, excluding: {url}")
+                        page_data["filtered_out"] = True
+                        # Keep tracking the URL as visited but don't include in final results
+                        continue
+
                 # Extract URLs and add to queue if recursive
                 if recursive:
                     if page_data["soup"]:
-                        new_urls = self._extract_urls(page_data["soup"], url)
+                        # Track current depth for this page
+                        current_depth = page_data.get("depth", 0)
+                        
+                        # Extract URLs with depth and pattern awareness
+                        new_urls = self._extract_urls(
+                            page_data["soup"], 
+                            url, 
+                            url_patterns=url_patterns,
+                            current_depth=current_depth,
+                            max_depth=max_depth
+                        )
                         
                         # Filter out already visited or queued URLs
                         filtered_urls = [u for u in new_urls if u not in self.visited_urls and u not in to_visit]
@@ -756,8 +814,16 @@ class WebCrawler:
                                 else:
                                     other_urls.append(link)
                             
+                            # Create URL objects with depth information
+                            prioritized_with_depth = [(url, current_depth + 1) for url in prioritized_urls]
+                            other_with_depth = [(url, current_depth + 1) for url in other_urls]
+                            
                             # Add prioritized links first
-                            to_visit = prioritized_urls + to_visit + other_urls
+                            to_visit_with_depth = [(u, d) for u, d in prioritized_with_depth if u not in [x[0] for x in to_visit]]
+                            to_visit_with_depth.extend([(u, d) for u, d in to_visit_with_depth + other_with_depth if u not in [x[0] for x in to_visit]])
+                            
+                            # Update to_visit with the new structure
+                            to_visit = to_visit_with_depth
                             
                             if prioritized_urls and progress_callback:
                                 progress_callback(
@@ -765,8 +831,9 @@ class WebCrawler:
                                     f"Found {len(prioritized_urls)} priority links matching AI criteria"
                                 )
                         else:
-                            # Standard link handling
-                            to_visit.extend(filtered_urls)
+                            # Standard link handling with depth tracking
+                            url_with_depth = [(url, current_depth + 1) for url in filtered_urls]
+                            to_visit.extend(url_with_depth)
                         
                         # Update total pages estimate
                         total_pages = max(total_pages, page_count + len(to_visit))

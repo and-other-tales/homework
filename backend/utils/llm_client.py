@@ -1,16 +1,28 @@
-"""LLM client module supporting OpenAI models."""
+"""LLM client module supporting OpenAI models and Agents SDK."""
 
 import json
 import os
 import logging
 import requests
-from typing import Dict, Any, Optional, List
+import asyncio
+from typing import Dict, Any, Optional, List, Union
+import traceback
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
+# Import OpenAI Agents SDK (lazy import)
+def get_agents_sdk():
+    """Lazily import the agents SDK to avoid hard dependency."""
+    try:
+        import agents
+        return agents
+    except ImportError:
+        logger.warning("OpenAI Agents SDK not installed. Install with: pip install openai-agents")
+        return None
+
 class LLMClient:
-    """Simple LLM client for generating chat responses using OpenAI API."""
+    """LLM client for generating chat responses using OpenAI API and Agents SDK."""
 
     def __init__(self, api_key: str = None):
         """
@@ -21,15 +33,423 @@ class LLMClient:
         """
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self.model = "gpt-3.5-turbo"  # Default model
+        self._agents_mode = False  # Whether to use the Agents SDK
         
         if not self.api_key:
             logger.warning("No OpenAI API key provided")
         else:
             logger.info("LLM client initialized with API key")
+            # Set the API key in the environment for Agents SDK
+            os.environ["OPENAI_API_KEY"] = self.api_key
+            
             # Log a masked version of the key for debugging
             if self.api_key:
                 masked_key = self.api_key[:4] + "..." + self.api_key[-4:] if len(self.api_key) > 8 else "***"
                 logger.debug(f"Using API key starting with {masked_key}")
+                
+            # Try to initialize the Agents SDK
+            agents_sdk = get_agents_sdk()
+            if agents_sdk:
+                self._agents_mode = True
+                logger.info("OpenAI Agents SDK initialized successfully")
+            else:
+                logger.warning("OpenAI Agents SDK not available, falling back to basic API")
+
+    @property
+    def has_agents_sdk(self) -> bool:
+        """Check if the Agents SDK is available."""
+        return self._agents_mode and get_agents_sdk() is not None
+
+    def _create_crawler_tool(self):
+        """Create a function tool for the web crawler."""
+        agents = get_agents_sdk()
+        if not agents:
+            return None
+            
+        # Import crawler functionality
+        try:
+            from web.crawler import WebCrawler
+            
+            @agents.function_tool
+            async def crawl_website(url: str, recursive: bool = False, max_pages: int = 10, 
+                                   user_instructions: str = None, max_depth: int = None,
+                                   content_filters: list = None, url_patterns: list = None) -> str:
+                """
+                Crawl a website to extract information.
+                
+                Args:
+                    url: The URL to start crawling from
+                    recursive: Whether to follow links on the page
+                    max_pages: Maximum number of pages to crawl
+                    user_instructions: Description of what to look for or extract
+                    max_depth: Maximum link depth to crawl (None for unlimited)
+                    content_filters: List of keywords to filter content by (only keep pages containing these terms)
+                    url_patterns: List of regex patterns to filter URLs (only follow URLs matching these patterns)
+                
+                Returns:
+                    A summary of the crawled content
+                """
+                logger.info(f"Agent calling crawl_website with URL: {url}")
+                try:
+                    crawler = WebCrawler()
+                    
+                    # Progress tracking function (not used in async mode)
+                    def progress_callback(percent, message):
+                        pass
+                    
+                    # Crawl with AI guidance when user instructions are provided
+                    use_ai = user_instructions is not None and len(user_instructions) > 0
+                    
+                    results = crawler.crawl_website(
+                        start_url=url,
+                        recursive=recursive,
+                        max_pages=max_pages,
+                        progress_callback=progress_callback,
+                        user_instructions=user_instructions,
+                        use_ai_guidance=use_ai,
+                        max_depth=max_depth,
+                        content_filters=content_filters,
+                        url_patterns=url_patterns
+                    )
+                    
+                    # Summarize the results
+                    summary = f"Crawled {len(results)} pages from {url}.\n\n"
+                    
+                    if len(results) > 0:
+                        # Extract key information
+                        titles = [page.get("title", "Untitled") for page in results if page.get("title")]
+                        summary += f"Found pages with titles: {', '.join(titles[:5])}"
+                        
+                        if len(titles) > 5:
+                            summary += f" and {len(titles) - 5} more."
+                        summary += "\n\n"
+                        
+                        # Include first page content as sample
+                        if "markdown" in results[0]:
+                            content_sample = results[0]["markdown"]
+                            # Truncate if too long
+                            if len(content_sample) > 1000:
+                                content_sample = content_sample[:1000] + "...[truncated]"
+                            summary += f"Sample content from first page:\n{content_sample}"
+                    
+                    return summary
+                except Exception as e:
+                    logger.error(f"Error in crawl_website tool: {str(e)}")
+                    return f"Error crawling website: {str(e)}"
+            
+            return crawl_website
+        except ImportError:
+            logger.error("Failed to import WebCrawler")
+            return None
+        except Exception as e:
+            logger.error(f"Error creating crawler tool: {e}")
+            return None
+
+    def _create_dataset_creation_tool(self):
+        """Create a function tool for dataset creation."""
+        agents = get_agents_sdk()
+        if not agents:
+            return None
+            
+        try:
+            from huggingface.dataset_creator import DatasetCreator
+            
+            @agents.function_tool
+            async def create_dataset(name: str, description: str, source_type: str, 
+                                    source_url: str) -> str:
+                """
+                Create a dataset from a GitHub repository or web content.
+                
+                Args:
+                    name: The name for the dataset
+                    description: A description of the dataset
+                    source_type: Either 'repository', 'organization', or 'website'
+                    source_url: The URL of the source (GitHub repo URL or website URL)
+                
+                Returns:
+                    A status message about the created dataset
+                """
+                logger.info(f"Agent calling create_dataset for {source_type}: {source_url}")
+                
+                try:
+                    # Validate inputs
+                    if source_type not in ["repository", "organization", "website"]:
+                        return f"Invalid source_type: {source_type}. Must be 'repository', 'organization', or 'website'."
+                    
+                    # Get credentials from credentials manager
+                    from config.credentials_manager import CredentialsManager
+                    creds_manager = CredentialsManager()
+                    
+                    # Get HuggingFace token
+                    hf_username, hf_token = creds_manager.get_huggingface_credentials()
+                    if not hf_token:
+                        return "Error: Hugging Face token not configured. Please set up your Hugging Face credentials."
+                    
+                    # Initialize the dataset creator
+                    dataset_creator = DatasetCreator(huggingface_token=hf_token)
+                    
+                    # Process based on source type
+                    if source_type == "website":
+                        # Create dataset from website
+                        from web.crawler import WebCrawler
+                        crawler = WebCrawler()
+                        
+                        # Crawl the website
+                        crawled_data = crawler.crawl_website(
+                            start_url=source_url,
+                            recursive=True,
+                            max_pages=50
+                        )
+                        
+                        # Prepare data for dataset
+                        file_data_list = crawler.prepare_data_for_dataset(crawled_data)
+                        
+                        # Create and push dataset
+                        success, dataset = dataset_creator.create_and_push_dataset(
+                            file_data_list=file_data_list,
+                            dataset_name=name,
+                            description=description,
+                            source_info=source_url
+                        )
+                        
+                        if success:
+                            return f"Successfully created dataset '{name}' from website {source_url} with {len(file_data_list)} files."
+                        else:
+                            return f"Failed to create dataset from website {source_url}."
+                    
+                    elif source_type == "repository":
+                        # Create dataset from repository
+                        result = dataset_creator.create_dataset_from_repository(
+                            repo_url=source_url,
+                            dataset_name=name,
+                            description=description
+                        )
+                        
+                        if result.get("success"):
+                            return f"Successfully created dataset '{name}' from repository {source_url}."
+                        else:
+                            return f"Failed to create dataset: {result.get('message', 'Unknown error')}"
+                    
+                    elif source_type == "organization":
+                        # Import content fetcher
+                        from github.content_fetcher import ContentFetcher
+                        
+                        # Get GitHub token
+                        github_token = creds_manager.get_github_token()
+                        
+                        # Initialize content fetcher
+                        content_fetcher = ContentFetcher(github_token=github_token)
+                        
+                        # Fetch repositories from organization
+                        repos = content_fetcher.fetch_org_repositories(source_url)
+                        
+                        if not repos:
+                            return f"No repositories found for organization: {source_url}"
+                        
+                        # Fetch content from all repositories
+                        content = content_fetcher.fetch_multiple_repositories(source_url)
+                        
+                        if not content:
+                            return f"No content found in repositories for organization: {source_url}"
+                        
+                        # Create and push dataset
+                        success, dataset = dataset_creator.create_and_push_dataset(
+                            file_data_list=content,
+                            dataset_name=name,
+                            description=description,
+                            source_info=source_url
+                        )
+                        
+                        if success:
+                            return f"Successfully created dataset '{name}' from organization {source_url} with {len(repos)} repositories and {len(content)} files."
+                        else:
+                            return f"Failed to create dataset from organization {source_url}."
+                    
+                    return f"Unknown source type: {source_type}"
+                
+                except Exception as e:
+                    logger.error(f"Error in create_dataset tool: {str(e)}")
+                    logger.error(traceback.format_exc())
+                    return f"Error creating dataset: {str(e)}"
+            
+            return create_dataset
+        except ImportError:
+            logger.error("Failed to import DatasetCreator")
+            return None
+        except Exception as e:
+            logger.error(f"Error creating dataset creation tool: {e}")
+            return None
+
+    def _create_knowledge_graph_tool(self):
+        """Create a function tool for knowledge graph operations."""
+        agents = get_agents_sdk()
+        if not agents:
+            return None
+            
+        try:
+            from knowledge_graph.graph_store import GraphStore
+            
+            @agents.function_tool
+            async def manage_knowledge_graph(action: str, graph_name: str, 
+                                           description: str = None) -> str:
+                """
+                Create, view, or manage a knowledge graph.
+                
+                Args:
+                    action: The action to perform ('create', 'list', 'view', 'delete')
+                    graph_name: The name of the knowledge graph
+                    description: A description of the graph (for create action)
+                
+                Returns:
+                    A status message about the knowledge graph operation
+                """
+                logger.info(f"Agent calling manage_knowledge_graph with action: {action}")
+                
+                try:
+                    # Initialize graph store
+                    graph_store = GraphStore()
+                    
+                    # Check connection
+                    if not graph_store.test_connection():
+                        return "Failed to connect to Neo4j database. Check database configuration."
+                    
+                    # Process action
+                    action = action.lower()
+                    
+                    if action == "list":
+                        graphs = graph_store.list_graphs()
+                        return f"Found {len(graphs)} knowledge graphs: {', '.join(graphs)}" if graphs else "No knowledge graphs found."
+                    
+                    elif action == "create":
+                        if not graph_name:
+                            return "Graph name is required for create action."
+                        
+                        # Create the graph
+                        success = graph_store.create_graph(graph_name, description)
+                        
+                        if success:
+                            # Initialize schema on the new graph
+                            specific_graph = GraphStore(graph_name=graph_name)
+                            specific_graph.initialize_schema()
+                            
+                            return f"Knowledge graph '{graph_name}' created successfully."
+                        else:
+                            return f"Failed to create knowledge graph '{graph_name}'."
+                    
+                    elif action == "view":
+                        if not graph_name:
+                            return "Graph name is required for view action."
+                        
+                        # Get statistics for the specified graph
+                        specific_graph = GraphStore(graph_name=graph_name)
+                        stats = specific_graph.get_statistics()
+                        
+                        if stats:
+                            return f"Statistics for graph '{graph_name}': {json.dumps(stats)}"
+                        else:
+                            return f"Failed to retrieve statistics for graph '{graph_name}'."
+                    
+                    elif action == "delete":
+                        if not graph_name:
+                            return "Graph name is required for delete action."
+                        
+                        # Delete the graph
+                        success = graph_store.delete_graph(graph_name)
+                        
+                        if success:
+                            return f"Knowledge graph '{graph_name}' deleted successfully."
+                        else:
+                            return f"Failed to delete knowledge graph '{graph_name}'."
+                    
+                    else:
+                        return f"Invalid action: {action}. Must be 'create', 'list', 'view', or 'delete'."
+                
+                except Exception as e:
+                    logger.error(f"Error in manage_knowledge_graph tool: {str(e)}")
+                    return f"Error managing knowledge graph: {str(e)}"
+            
+            return manage_knowledge_graph
+        except ImportError:
+            logger.error("Failed to import GraphStore")
+            return None
+        except Exception as e:
+            logger.error(f"Error creating knowledge graph tool: {e}")
+            return None
+
+    async def _create_agent(self, user_message: str = None) -> Any:
+        """
+        Create and configure an OpenAI Agent with the appropriate tools.
+        
+        Args:
+            user_message: Optional message to determine if need for specialized tools
+        
+        Returns:
+            An OpenAI Agent object or None if failed
+        """
+        agents = get_agents_sdk()
+        if not agents:
+            return None
+            
+        try:
+            # Determine what tools to include based on the message content
+            tools = []
+            
+            # Always include web search
+            web_search_tool = agents.WebSearchTool()
+            tools.append(web_search_tool)
+            
+            # Check if message indicates need for crawling or dataset tools
+            crawler_terms = ["crawl", "scrape", "extract", "website", "webpage", "web page"]
+            dataset_terms = ["dataset", "create dataset", "hugging face", "huggingface"]
+            knowledge_graph_terms = ["knowledge graph", "graph", "neo4j"]
+            
+            # Make user_message case-insensitive
+            message_lower = user_message.lower() if user_message else ""
+            
+            # Check if we need crawler tool
+            if user_message and any(term in message_lower for term in crawler_terms):
+                logger.info("Adding crawler tool based on user message")
+                crawler_tool = self._create_crawler_tool()
+                if crawler_tool:
+                    tools.append(crawler_tool)
+            
+            # Check if we need dataset creation tool
+            if user_message and any(term in message_lower for term in dataset_terms):
+                logger.info("Adding dataset creation tool based on user message")
+                dataset_tool = self._create_dataset_creation_tool()
+                if dataset_tool:
+                    tools.append(dataset_tool)
+            
+            # Check if we need knowledge graph tool
+            if user_message and any(term in message_lower for term in knowledge_graph_terms):
+                logger.info("Adding knowledge graph tool based on user message")
+                knowledge_graph_tool = self._create_knowledge_graph_tool()
+                if knowledge_graph_tool:
+                    tools.append(knowledge_graph_tool)
+            
+            # Create the main agent
+            agent = agents.Agent(
+                name="Homework Assistant",
+                instructions=(
+                    "You are a helpful assistant for the Homework project. "
+                    "Your primary focus is helping users gather and organize information "
+                    "through web searching, web crawling, and dataset creation. "
+                    "You can search the web, crawl websites, create datasets from GitHub repositories "
+                    "or web content, and manage knowledge graphs. "
+                    "For web crawling tasks, try to understand what specific information the user is looking for "
+                    "and provide detailed instructions to the crawler. "
+                    "For dataset creation, help the user understand the structure of the source repository or "
+                    "organization, and explain how the data will be organized. "
+                    "Always be clear about what you're doing and why."
+                ),
+                tools=tools
+            )
+            
+            return agent
+        except Exception as e:
+            logger.error(f"Error creating agent: {e}")
+            logger.error(traceback.format_exc())
+            return None
 
     async def generate_response(self, user_message: str) -> str:
         """
@@ -45,6 +465,60 @@ class LLMClient:
         if not self.api_key:
             return "I need an OpenAI API key to respond to messages. Please set up your OpenAI API key in the Configuration page."
         
+        # Check if we should use the Agents SDK
+        if self.has_agents_sdk:
+            return await self._generate_response_with_agents(user_message)
+        else:
+            # Fall back to basic API
+            return await self._generate_response_with_api(user_message)
+
+    async def _generate_response_with_agents(self, user_message: str) -> str:
+        """
+        Generate a response using the OpenAI Agents SDK.
+        
+        Args:
+            user_message: The user's message
+            
+        Returns:
+            str: The generated response
+        """
+        agents = get_agents_sdk()
+        if not agents:
+            return "OpenAI Agents SDK is not available. Falling back to basic API."
+            
+        try:
+            # Create agent with appropriate tools
+            agent = await self._create_agent(user_message)
+            if not agent:
+                return "Failed to initialize OpenAI Agent. Falling back to basic API."
+            
+            # Run the agent
+            logger.info(f"Running OpenAI Agent with message: {user_message}")
+            result = await agents.Runner.run(agent, user_message)
+            
+            if result and hasattr(result, 'final_output'):
+                logger.info("Successfully generated response with OpenAI Agent")
+                return result.final_output
+            else:
+                logger.warning("OpenAI Agent returned empty or invalid response")
+                return "I apologize, but I couldn't generate a proper response. Please try again or rephrase your question."
+        except Exception as e:
+            logger.error(f"Error running OpenAI Agent: {e}")
+            logger.error(traceback.format_exc())
+            
+            # Return error message
+            return f"I encountered an error while processing your message with the AI Agent: {str(e)}"
+
+    async def _generate_response_with_api(self, user_message: str) -> str:
+        """
+        Generate a response using the basic OpenAI API.
+        
+        Args:
+            user_message: The user's message
+            
+        Returns:
+            str: The generated response
+        """
         try:
             # Make actual API call to OpenAI
             headers = {

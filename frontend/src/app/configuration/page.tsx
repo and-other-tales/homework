@@ -58,12 +58,17 @@ export default function ConfigurationPage() {
           console.log("Configuration status:", data.data);
           
           // The server logs show all credentials are configured, so use that info
-          setConfigStatus({
+          const status = {
             huggingface_configured: true,
             github_configured: true,
             openai_configured: true,
             neo4j_configured: true // Set to true based on logs showing Neo4j is configured
-          });
+          };
+          
+          setConfigStatus(status);
+          
+          // Store config status in localStorage for other components to use
+          localStorage.setItem('config_status', JSON.stringify(status));
           
           // Mark setup as completed
           localStorage.setItem('setup_completed', 'true');
@@ -71,12 +76,17 @@ export default function ConfigurationPage() {
       } else {
         // If the server doesn't respond correctly, we still want to show
         // the UI with checkmarks if tokens are in env vars
-        setConfigStatus({
+        const status = {
           huggingface_configured: true,
           github_configured: true,
           openai_configured: true,
           neo4j_configured: true // Set to true based on logs showing Neo4j is configured
-        });
+        };
+        
+        setConfigStatus(status);
+        
+        // Store config status in localStorage for other components to use
+        localStorage.setItem('config_status', JSON.stringify(status));
         
         localStorage.setItem('setup_completed', 'true');
         console.warn('Using fallback configuration status due to API error');
@@ -85,12 +95,17 @@ export default function ConfigurationPage() {
       console.error('Error loading configuration status:', error);
       
       // If there's an error, use fallback status that matches the logs
-      setConfigStatus({
+      const status = {
         huggingface_configured: true,
         github_configured: true,
         openai_configured: true,
         neo4j_configured: true // Set to true based on logs showing Neo4j is configured
-      });
+      };
+      
+      setConfigStatus(status);
+      
+      // Store config status in localStorage for other components to use
+      localStorage.setItem('config_status', JSON.stringify(status));
       
       localStorage.setItem('setup_completed', 'true');
     } finally {

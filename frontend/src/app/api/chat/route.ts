@@ -9,14 +9,18 @@ export async function POST(request: NextRequest) {
     // For security reasons, we prefer a server-side environment variable
     let apiKey = process.env.OPENAI_API_KEY;
     
-    // Fall back to client-provided API key if server doesn't have one
-    if (!apiKey && clientApiKey) {
+    console.log("Server-side OPENAI_API_KEY available:", !!apiKey);
+    
+    // Check if the client is telling us to use the server-side key
+    if (clientApiKey === "USE_SERVER_KEY") {
+      // Just continue using server-side key
+      console.log("Client requested to use server-side key");
+    }
+    // Fall back to client-provided API key if server doesn't have one and client provided a real key
+    else if (!apiKey && clientApiKey && clientApiKey !== "USE_SERVER_KEY") {
       apiKey = clientApiKey;
       console.log("Using client-provided API key");
     }
-    
-    // Debug log to check if we have an API key (without logging the actual key)
-    console.log("API key available:", !!apiKey);
     
     // For development/testing - if no API key is available, create a mock response
     if (!apiKey) {
@@ -28,6 +32,8 @@ export async function POST(request: NextRequest) {
         tokenUsage: { total_tokens: 150 }
       });
     }
+    
+    console.log("Using OpenAI API with model:", model || "gpt-3.5-turbo");
     
     // Use the specified model or default to gpt-3.5-turbo
     const chatModel = model || "gpt-3.5-turbo";
@@ -43,17 +49,18 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           model: chatModel,
           messages: [
-            { role: "system", content: "You are a helpful assistant." },
+            { role: "system", content: "You are a helpful assistant for the Homework project. You can help with web searches, website crawling, dataset creation from GitHub repositories or websites, and knowledge graph management." },
             { role: "user", content: message }
           ],
           temperature: 0.7,
-          max_tokens: 1000
+          max_tokens: 2000
         })
       });
       
       // Handle API response
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("OpenAI API error:", errorData);
         return NextResponse.json(
           {
             error: true,

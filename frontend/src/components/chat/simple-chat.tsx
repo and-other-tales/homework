@@ -26,7 +26,7 @@ export function SimpleChat() {
       {
         id: 'welcome',
         type: 'system',
-        content: 'Welcome to the homework AI Assistant. How can I help you today?',
+        content: 'Welcome to the homework AI Assistant. I can help you with web search, website crawling, dataset creation from GitHub repositories or websites, and knowledge graph management. How can I help you today?',
         timestamp: new Date().toISOString()
       }
     ]);
@@ -80,6 +80,17 @@ export function SimpleChat() {
           // Include API key if available in local storage
           if (config.openai_api_key) {
             apiKey = config.openai_api_key;
+          }
+        }
+        
+        // Check if OpenAI is configured in config status
+        const configStatus = localStorage.getItem('config_status');
+        if (configStatus) {
+          const status = JSON.parse(configStatus);
+          if (status.openai_configured && !apiKey) {
+            console.log("OpenAI is configured according to status, but no key in localStorage");
+            // Set a flag to tell backend to use server-side key
+            apiKey = "USE_SERVER_KEY";
           }
         }
       } catch (e) {
@@ -164,7 +175,7 @@ export function SimpleChat() {
     setMessages([{
       id: 'welcome',
       type: 'system',
-      content: 'Welcome to the homework AI Assistant. How can I help you today?',
+      content: 'Welcome to the homework AI Assistant. I can help you with web search, website crawling, dataset creation from GitHub repositories or websites, and knowledge graph management. How can I help you today?',
       timestamp: new Date().toISOString()
     }]);
     
