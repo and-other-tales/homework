@@ -7,8 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, GitFork, GitBranch, Star, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-// Use the simple API client temporarily until we resolve the import issue
-import { simpleApiClient as apiClient } from '@/lib/api-client';
 
 interface Repository {
   id: number;
@@ -126,16 +124,22 @@ export default function GitHubPage() {
       
       toast.loading(`Generating dataset from ${sourceType} ${sourceName}...`);
       
-      // Call the API to generate dataset
-      const response = await apiClient.generateDataset({
-        source_type: sourceType as any,
-        source_name: sourceName,
-        dataset_name: datasetName,
-        description: `Dataset generated from ${sourceType} ${sourceName}`,
-      });
+      // Call the API to generate dataset using fetch directly
+      const response = await fetch('/api/datasets/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source_type: sourceType,
+          source_name: sourceName,
+          dataset_name: datasetName,
+          description: `Dataset generated from ${sourceType} ${sourceName}`,
+        }),
+      }).then(res => res.json());
       
-      if (response.success) {
-        toast.success(`Dataset ${datasetName} created successfully`);
+      if (response.success || response.task_id) {
+        toast.success(`Dataset ${datasetName} creation started successfully`);
         
         // Add to processed repos
         setProcessedRepos(prev => [...prev, sourceName]);
