@@ -64,6 +64,18 @@ fi
 # Run in the homework-app directory
 cd "$(dirname "$0")"
 
+# Add network connectivity check
+print_message "yellow" "🔍 Checking network connectivity..."
+if ! ping -c 1 deb.debian.org &> /dev/null; then
+  print_message "red" "❌ Network connectivity issue detected: Cannot reach Debian package repositories."
+  print_message "yellow" "- Check your internet connection"
+  print_message "yellow" "- If using a VPN, try disabling it temporarily"
+  print_message "yellow" "- Ensure Docker has proper network access"
+  print_message "yellow" "- You can try manually setting DNS in Docker by editing /etc/docker/daemon.json:"
+  print_message "yellow" "  {\"dns\": [\"8.8.8.8\", \"8.8.4.4\"]}"
+  exit 1
+fi
+
 # Build and start the containers
 print_message "green" "🔨 Building and starting containers..."
 docker-compose up -d --build
