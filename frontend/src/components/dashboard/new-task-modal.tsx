@@ -17,7 +17,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-// No API client import needed as we use fetch directly
 
 // Export a handle type
 export type NewTaskModalHandle = {
@@ -263,4 +262,7 @@ export const NewTaskModal = forwardRef<NewTaskModalHandle, {}>((props, ref) => {
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+// Add displayName to help with debugging
+NewTaskModal.displayName = 'NewTaskModal';

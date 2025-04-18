@@ -10,6 +10,7 @@ import { useRef } from "react";
 // Metadata needs to be in a separate layout file for client components
 
 export default function DashboardPage() {
+  // This ref allows us to control the modal from outside
   const modalRef = useRef<NewTaskModalHandle>(null);
 
   return (
