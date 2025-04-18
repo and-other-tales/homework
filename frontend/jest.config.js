@@ -1,24 +1,28 @@
-module.exports = {
+/** @type {import('jest').Config} */
+const config = {
   testEnvironment: 'jsdom',
-  roots: ['<rootDir>/../tests'],
+  roots: ['<rootDir>/src', '<rootDir>/../tests'],
   moduleNameMapper: {
-    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '^@/(.*)$': '<rootDir>/src/$1',
-    // These aren't needed because we're mocking in setup.js
-    // but adding as fallbacks
-    '^next/router$': '<rootDir>/__mocks__/next/router.js',
-    '^next/navigation$': '<rootDir>/__mocks__/next/navigation.js'
+    '\\.(css|less|scss|sass)$': 'identity-obj-proxy'
   },
-  setupFilesAfterEnv: ['<rootDir>/../tests/setup.js'],
+  transform: {
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }]
+  },
+  setupFilesAfterEnv: [
+    '<rootDir>/jest.setup.mjs',
+    '@testing-library/jest-dom/extend-expect'
+  ],
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/.next/'
+  ],
+  moduleDirectories: ['node_modules', '<rootDir>'],
+  moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx'],
   testMatch: [
     '**/__tests__/**/*.+(ts|tsx|js|jsx)',
     '**/?(*.)+(spec|test).+(ts|tsx|js|jsx)'
-  ],
-  transform: {
-    '^.+\\.(ts|tsx)$': 'babel-jest',
-    '^.+\\.(js|jsx)$': 'babel-jest'
-  },
-  // Make sure Next.js modules can be found
-  moduleDirectories: ['node_modules', '<rootDir>/node_modules', '../node_modules'],
-  transformIgnorePatterns: ['/node_modules/(?!next|@next)']
-}
+  ]
+};
+
+module.exports = config;
