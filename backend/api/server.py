@@ -102,8 +102,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Initialize templates
-templates = Jinja2Templates(directory="web/templates")
+# Initialize templates (commented out as templates are not needed)
+# templates = Jinja2Templates(directory="web/templates")
 
 # Add security middlewares
 app.add_middleware(SecurityHeadersMiddleware)
@@ -662,72 +662,14 @@ def start_server(api_key, host="0.0.0.0", port=8080, use_https=False, cert_file=
             logger.error(f"SSL key file not found: {key_file}")
             return False
     
-    # Mount static files and routes if UI is enabled
+    # Add routes if UI is enabled
     if with_ui:
-        # Mount static files
-        app.mount("/static", StaticFiles(directory="web/static"), name="static")
-        
         # Add UI routes
         @app.get("/", response_class=HTMLResponse)
         async def get_dashboard(request: Request):
             """Render the dashboard page"""
-            # Get system status data
-            from utils.task_tracker import TaskTracker
-            task_tracker = TaskTracker()
-            recent_tasks = task_tracker.list_resumable_tasks()[:5]
-            cache_size = task_tracker.get_cache_size()
-            
-            # Get credentials status
-            from config.credentials_manager import CredentialsManager
-            credentials_manager = CredentialsManager()
-            
-            # Initialize status variables
-            github_status = False
-            huggingface_status = False
-            neo4j_status = False
-            
-            # Check credentials
-            try:
-                # GitHub check
-                from github.client import GitHubClient
-                github_client = GitHubClient()
-                github_status = github_client.verify_credentials()
-            except:
-                pass
-                
-            try:
-                # Hugging Face check
-                _, huggingface_token = credentials_manager.get_huggingface_credentials()
-                huggingface_status = bool(huggingface_token)
-            except:
-                pass
-                
-            try:
-                # Neo4j check
-                from knowledge_graph.graph_store import GraphStore
-                graph_store = GraphStore()
-                neo4j_status = graph_store.test_connection()
-            except:
-                pass
-                
-            # Get server status
-            server_running = is_server_running()
-            
-            # Render dashboard
-            return templates.TemplateResponse("dashboard.html", {
-                "request": request,
-                "server_status": server_running,
-                "github_status": github_status,
-                "huggingface_status": huggingface_status,
-                "neo4j_status": neo4j_status,
-                "recent_tasks": recent_tasks,
-                "cache_size": cache_size,
-                "dataset_count": 0,  # Would need to fetch actual count
-                "server_port": port,
-                "temp_dir": credentials_manager.get_temp_dir(),
-                "active_page": "dashboard",
-                "messages": []  # Empty messages for template
-            })
+            # Return a simple response instead of using templates
+            return HTMLResponse(content="<html><body><h1>API Server is Running</h1><p>Please use the frontend at <a href='http://localhost:3000'>http://localhost:3000</a></p></body></html>")
         
         @app.get("/chat", response_class=HTMLResponse)
         async def get_chat(request: Request):
@@ -736,315 +678,38 @@ def start_server(api_key, host="0.0.0.0", port=8080, use_https=False, cert_file=
             protocol = "wss" if use_https else "ws"
             websocket_url = f"{protocol}://{request.headers.get('host', f'{host}:{port}')}/ws"
             
-            return templates.TemplateResponse("chat.html", {
-                "request": request,
-                "active_page": "chat",
-                "websocket_url": websocket_url,
-                "messages": []  # Empty messages for template
-            })
+            # Return a simple response redirecting to frontend
+            return HTMLResponse(content="<html><body><h1>Chat API is Running</h1><p>Please use the frontend chat at <a href='http://localhost:3000/chat'>http://localhost:3000/chat</a></p></body></html>")
         
         # Additional UI routes
         @app.get("/github", response_class=HTMLResponse)
         async def get_github(request: Request):
             """Render the GitHub page"""
-            # Get system status data
-            from utils.task_tracker import TaskTracker
-            task_tracker = TaskTracker()
-            recent_tasks = task_tracker.list_resumable_tasks()[:5]
-            cache_size = task_tracker.get_cache_size()
-            
-            # Get credentials status
-            from config.credentials_manager import CredentialsManager
-            credentials_manager = CredentialsManager()
-            
-            # Initialize status variables
-            github_status = False
-            huggingface_status = False
-            neo4j_status = False
-            
-            # Check credentials
-            try:
-                # GitHub check
-                from github.client import GitHubClient
-                github_client = GitHubClient()
-                github_status = github_client.verify_credentials()
-            except:
-                pass
-                
-            try:
-                # Hugging Face check
-                _, huggingface_token = credentials_manager.get_huggingface_credentials()
-                huggingface_status = bool(huggingface_token)
-            except:
-                pass
-                
-            try:
-                # Neo4j check
-                from knowledge_graph.graph_store import GraphStore
-                graph_store = GraphStore()
-                neo4j_status = graph_store.test_connection()
-            except:
-                pass
-                
-            # Get server status
-            server_running = is_server_running()
-            
-            return templates.TemplateResponse("github.html", {
-                "request": request,
-                "server_status": server_running,
-                "github_status": github_status,
-                "huggingface_status": huggingface_status,
-                "neo4j_status": neo4j_status,
-                "recent_tasks": recent_tasks,
-                "cache_size": cache_size,
-                "dataset_count": 0,
-                "server_port": port,
-                "temp_dir": credentials_manager.get_temp_dir(),
-                "active_page": "github",
-                "messages": []
-            })
+            # Return a simple response redirecting to frontend
+            return HTMLResponse(content="<html><body><h1>GitHub API is Running</h1><p>Please use the frontend GitHub page at <a href='http://localhost:3000/github'>http://localhost:3000/github</a></p></body></html>")
             
         @app.get("/huggingface", response_class=HTMLResponse)
         async def get_huggingface(request: Request):
             """Render the Hugging Face page"""
-            # Get system status data
-            from utils.task_tracker import TaskTracker
-            task_tracker = TaskTracker()
-            recent_tasks = task_tracker.list_resumable_tasks()[:5]
-            cache_size = task_tracker.get_cache_size()
-            
-            # Get credentials status
-            from config.credentials_manager import CredentialsManager
-            credentials_manager = CredentialsManager()
-            
-            # Initialize status variables
-            github_status = False
-            huggingface_status = False
-            neo4j_status = False
-            
-            # Check credentials
-            try:
-                # GitHub check
-                from github.client import GitHubClient
-                github_client = GitHubClient()
-                github_status = github_client.verify_credentials()
-            except:
-                pass
-                
-            try:
-                # Hugging Face check
-                _, huggingface_token = credentials_manager.get_huggingface_credentials()
-                huggingface_status = bool(huggingface_token)
-            except:
-                pass
-                
-            try:
-                # Neo4j check
-                from knowledge_graph.graph_store import GraphStore
-                graph_store = GraphStore()
-                neo4j_status = graph_store.test_connection()
-            except:
-                pass
-                
-            # Get server status
-            server_running = is_server_running()
-            
-            return templates.TemplateResponse("huggingface.html", {
-                "request": request,
-                "server_status": server_running,
-                "github_status": github_status,
-                "huggingface_status": huggingface_status,
-                "neo4j_status": neo4j_status,
-                "recent_tasks": recent_tasks,
-                "cache_size": cache_size,
-                "dataset_count": 0,
-                "server_port": port,
-                "temp_dir": credentials_manager.get_temp_dir(),
-                "active_page": "huggingface",
-                "messages": []
-            })
+            # Return a simple response redirecting to frontend
+            return HTMLResponse(content="<html><body><h1>HuggingFace API is Running</h1><p>Please use the frontend HuggingFace page at <a href='http://localhost:3000/huggingface'>http://localhost:3000/huggingface</a></p></body></html>")
             
         @app.get("/knowledge_graphs", response_class=HTMLResponse)
         async def get_knowledge_graphs(request: Request):
             """Render the Knowledge Graphs page"""
-            # Get system status data
-            from utils.task_tracker import TaskTracker
-            task_tracker = TaskTracker()
-            recent_tasks = task_tracker.list_resumable_tasks()[:5]
-            cache_size = task_tracker.get_cache_size()
-            
-            # Get credentials status
-            from config.credentials_manager import CredentialsManager
-            credentials_manager = CredentialsManager()
-            
-            # Initialize status variables
-            github_status = False
-            huggingface_status = False
-            neo4j_status = False
-            
-            # Check credentials
-            try:
-                # GitHub check
-                from github.client import GitHubClient
-                github_client = GitHubClient()
-                github_status = github_client.verify_credentials()
-            except:
-                pass
-                
-            try:
-                # Hugging Face check
-                _, huggingface_token = credentials_manager.get_huggingface_credentials()
-                huggingface_status = bool(huggingface_token)
-            except:
-                pass
-                
-            try:
-                # Neo4j check
-                from knowledge_graph.graph_store import GraphStore
-                graph_store = GraphStore()
-                neo4j_status = graph_store.test_connection()
-            except:
-                pass
-                
-            # Get server status
-            server_running = is_server_running()
-            
-            return templates.TemplateResponse("knowledge_graphs.html", {
-                "request": request,
-                "server_status": server_running,
-                "github_status": github_status,
-                "huggingface_status": huggingface_status,
-                "neo4j_status": neo4j_status,
-                "recent_tasks": recent_tasks,
-                "cache_size": cache_size,
-                "dataset_count": 0,
-                "server_port": port,
-                "temp_dir": credentials_manager.get_temp_dir(),
-                "active_page": "knowledge_graphs",
-                "messages": []
-            })
+            # Return a simple response redirecting to frontend
+            return HTMLResponse(content="<html><body><h1>Knowledge Graphs API is Running</h1><p>Please use the frontend Knowledge Graphs page at <a href='http://localhost:3000/knowledge_graphs'>http://localhost:3000/knowledge_graphs</a></p></body></html>")
         @app.get("/tasks", response_class=HTMLResponse)
         async def get_tasks(request: Request):
             """Render the tasks page"""
-            # Get task data
-            from utils.task_tracker import TaskTracker
-            task_tracker = TaskTracker()
-            tasks = task_tracker.list_resumable_tasks()
-            
-            # Get system status data for dashboard widgets
-            cache_size = task_tracker.get_cache_size()
-            
-            # Get credentials status
-            from config.credentials_manager import CredentialsManager
-            credentials_manager = CredentialsManager()
-            
-            # Initialize status variables
-            github_status = False
-            huggingface_status = False
-            neo4j_status = False
-            
-            # Check credentials
-            try:
-                # GitHub check
-                from github.client import GitHubClient
-                github_client = GitHubClient()
-                github_status = github_client.verify_credentials()
-            except:
-                pass
-                
-            try:
-                # Hugging Face check
-                _, huggingface_token = credentials_manager.get_huggingface_credentials()
-                huggingface_status = bool(huggingface_token)
-            except:
-                pass
-                
-            try:
-                # Neo4j check
-                from knowledge_graph.graph_store import GraphStore
-                graph_store = GraphStore()
-                neo4j_status = graph_store.test_connection()
-            except:
-                pass
-                
-            # Get server status
-            server_running = is_server_running()
-            
-            return templates.TemplateResponse("tasks.html", {
-                "request": request,
-                "server_status": server_running,
-                "github_status": github_status,
-                "huggingface_status": huggingface_status,
-                "neo4j_status": neo4j_status,
-                "tasks": tasks,
-                "recent_tasks": tasks[:5],
-                "cache_size": cache_size,
-                "dataset_count": 0,
-                "server_port": port,
-                "temp_dir": credentials_manager.get_temp_dir(),
-                "active_page": "tasks",
-                "messages": []  # Empty messages for template
-            })
+            # Return a simple response redirecting to frontend
+            return HTMLResponse(content="<html><body><h1>Tasks API is Running</h1><p>Please use the frontend Tasks page at <a href='http://localhost:3000/tasks'>http://localhost:3000/tasks</a></p></body></html>")
         
         @app.get("/configuration", response_class=HTMLResponse)
         async def get_configuration(request: Request):
             """Render the configuration page"""
-            # Get configuration data
-            from config.credentials_manager import CredentialsManager
-            credentials_manager = CredentialsManager()
-            
-            # Get system status data for dashboard widgets
-            from utils.task_tracker import TaskTracker
-            task_tracker = TaskTracker()
-            recent_tasks = task_tracker.list_resumable_tasks()[:5]
-            cache_size = task_tracker.get_cache_size()
-            
-            # Initialize status variables
-            github_status = False
-            huggingface_status = False
-            neo4j_status = False
-            
-            # Check credentials
-            try:
-                # GitHub check
-                from github.client import GitHubClient
-                github_client = GitHubClient()
-                github_status = github_client.verify_credentials()
-            except:
-                pass
-                
-            try:
-                # Hugging Face check
-                _, huggingface_token = credentials_manager.get_huggingface_credentials()
-                huggingface_status = bool(huggingface_token)
-            except:
-                pass
-                
-            try:
-                # Neo4j check
-                from knowledge_graph.graph_store import GraphStore
-                graph_store = GraphStore()
-                neo4j_status = graph_store.test_connection()
-            except:
-                pass
-                
-            # Get server status
-            server_running = is_server_running()
-            
-            return templates.TemplateResponse("configuration.html", {
-                "request": request,
-                "server_status": server_running,
-                "github_status": github_status,
-                "huggingface_status": huggingface_status,
-                "neo4j_status": neo4j_status,
-                "recent_tasks": recent_tasks,
-                "cache_size": cache_size,
-                "dataset_count": 0,  # Would need to fetch actual count
-                "server_port": port,
-                "temp_dir": credentials_manager.get_temp_dir(),
-                "active_page": "configuration",
-                "messages": []  # Empty messages for template
-            })
+            # Return a simple response redirecting to frontend
+            return HTMLResponse(content="<html><body><h1>Configuration API is Running</h1><p>Please use the frontend Configuration page at <a href='http://localhost:3000/configuration'>http://localhost:3000/configuration</a></p></body></html>")
 
     def run_server():
         import uvicorn

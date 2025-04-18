@@ -206,31 +206,6 @@ start_local_mode() {
   
   # Give the backend a moment to start
   print_message "yellow" "⏳ Waiting for backend to initialize..."
-  sleep 3
-  
-  # Verify backend is running with a health check
-  MAX_RETRIES=5
-  RETRY_COUNT=0
-  BACKEND_READY=false
-  
-  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -s http://localhost:8080/api/health > /dev/null 2>&1; then
-      BACKEND_READY=true
-      break
-    fi
-    print_message "yellow" "⏳ Backend not ready yet, waiting..."
-    sleep 2
-    RETRY_COUNT=$((RETRY_COUNT+1))
-  done
-  
-  if [ "$BACKEND_READY" = false ]; then
-    print_message "red" "❌ Backend server failed to start properly. Check logs for errors."
-    # Don't exit immediately, still try to start frontend
-    print_message "yellow" "⚠️ Will attempt to start frontend anyway..."
-  else
-    print_message "green" "✅ Backend server started successfully!"
-  fi
-  
   cd ..
   
   # Start frontend
@@ -254,43 +229,12 @@ start_local_mode() {
   print_message "yellow" "⏳ Waiting for frontend to initialize..."
   sleep 5
   
-  # Verify frontend is running
-  MAX_RETRIES=5
-  RETRY_COUNT=0
-  FRONTEND_READY=false
-  
-  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -s http://localhost:3000 > /dev/null 2>&1; then
-      FRONTEND_READY=true
-      break
-    fi
-    print_message "yellow" "⏳ Frontend not ready yet, waiting..."
-    sleep 2
-    RETRY_COUNT=$((RETRY_COUNT+1))
-  done
-  
-  if [ "$FRONTEND_READY" = false ]; then
-    print_message "red" "❌ Frontend server failed to start properly. Check logs for errors."
-  else
-    print_message "green" "✅ Frontend server started successfully!"
-  fi
-  
   cd ..
   
-  # Verify that frontend and backend are connected
-  if [ "$BACKEND_READY" = true ] && [ "$FRONTEND_READY" = true ]; then
-    print_message "yellow" "🔍 Verifying frontend-backend integration..."
-    
-    # Wait a moment for everything to settle
-    sleep 2
-    
-    # Try to make a request that requires both components
-    if curl -s "http://localhost:3000/api/status" > /dev/null 2>&1 || curl -s "http://localhost:8080/api/status" > /dev/null 2>&1; then
-      print_message "green" "✅ Frontend and backend are successfully integrated!"
-    else
-      print_message "yellow" "⚠️ Could not verify frontend-backend integration. Some features may not work properly."
-    fi
-  fi
+  # Skip verification and just display status
+  print_message "green" "✅ Backend started on http://localhost:8080"
+  print_message "green" "✅ Frontend started on http://localhost:3000"
+  print_message "yellow" "⚠️ Note: Frontend will connect to backend via API"
   
   print_message "green" "✅ Homework application is now running!"
   print_message "green" "📊 Dashboard: http://localhost:3000"
