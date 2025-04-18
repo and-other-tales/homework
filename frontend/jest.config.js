@@ -4,11 +4,10 @@ module.exports = {
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '^@/(.*)$': '<rootDir>/src/$1',
-    // Mock Next.js modules
+    // These aren't needed because we're mocking in setup.js
+    // but adding as fallbacks
     '^next/router$': '<rootDir>/__mocks__/next/router.js',
-    '^next/navigation$': '<rootDir>/__mocks__/next/navigation.js',
-    '^next/link$': '<rootDir>/__mocks__/next/link.js',
-    '^next/image$': '<rootDir>/__mocks__/next/image.js'
+    '^next/navigation$': '<rootDir>/__mocks__/next/navigation.js'
   },
   setupFilesAfterEnv: ['<rootDir>/../tests/setup.js'],
   testMatch: [
@@ -19,8 +18,7 @@ module.exports = {
     '^.+\\.(ts|tsx)$': 'babel-jest',
     '^.+\\.(js|jsx)$': 'babel-jest'
   },
-  moduleDirectories: ['node_modules', '<rootDir>/src'],
-  transformIgnorePatterns: [
-    '/node_modules/(?!next|@next)/'
-  ]
+  // Make sure Next.js modules can be found
+  moduleDirectories: ['node_modules', '<rootDir>/node_modules', '../node_modules'],
+  transformIgnorePatterns: ['/node_modules/(?!next|@next)']
 }

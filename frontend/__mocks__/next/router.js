@@ -1,4 +1,4 @@
-cd// Mock for next/router
+// Mock for next/router
 module.exports = {
   useRouter: jest.fn().mockReturnValue({
     route: '/',
