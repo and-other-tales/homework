@@ -26,7 +26,7 @@ export function SimpleChat() {
       {
         id: 'welcome',
         type: 'system',
-        content: 'Welcome to the Direct Chat interface. This uses a direct API call to OpenAI rather than WebSockets.',
+        content: 'Welcome to the homework AI Assistant. How can I help you today?',
         timestamp: new Date().toISOString()
       }
     ]);
@@ -44,7 +44,7 @@ export function SimpleChat() {
     
     // Add user message to chat
     const userMessage: Message = {
-      id: crypto.randomUUID(),
+      id: `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: 'user',
       content: input,
       timestamp: new Date().toISOString()
@@ -54,7 +54,7 @@ export function SimpleChat() {
     
     // Add thinking message
     const thinkingMessage: Message = {
-      id: crypto.randomUUID(),
+      id: `thinking_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: 'thinking',
       content: 'Thinking...',
       timestamp: new Date().toISOString()
@@ -65,14 +65,21 @@ export function SimpleChat() {
     setInput('');
     
     try {
-      // Load model preference from localStorage if available
+      // Load preferences from localStorage if available
       let chatModel = "gpt-3.5-turbo";
+      let apiKey = "";
+      
       try {
         const savedConfig = localStorage.getItem('homework_config_state');
         if (savedConfig) {
           const config = JSON.parse(savedConfig);
           if (config.chat_model) {
             chatModel = config.chat_model;
+          }
+          
+          // Include API key if available in local storage
+          if (config.openai_api_key) {
+            apiKey = config.openai_api_key;
           }
         }
       } catch (e) {
@@ -87,7 +94,8 @@ export function SimpleChat() {
         },
         body: JSON.stringify({
           message: input,
-          model: chatModel
+          model: chatModel,
+          apiKey: apiKey  // Send API key if available from client storage
         })
       });
       
@@ -99,7 +107,7 @@ export function SimpleChat() {
         
         // Add error message
         const errorMessage: Message = {
-          id: crypto.randomUUID(),
+          id: `error_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
           type: 'error',
           content: errorData.message || 'Failed to get a response from the chat server.',
           timestamp: new Date().toISOString()
@@ -115,7 +123,7 @@ export function SimpleChat() {
       
       // Add assistant message
       const assistantMessage: Message = {
-        id: crypto.randomUUID(),
+        id: `assistant_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         type: 'assistant',
         content: data.message,
         timestamp: new Date().toISOString()
@@ -136,7 +144,7 @@ export function SimpleChat() {
       
       // Add error message
       const errorMessage: Message = {
-        id: crypto.randomUUID(),
+        id: `error_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         type: 'error',
         content: error instanceof Error 
           ? error.message 
@@ -160,7 +168,7 @@ export function SimpleChat() {
       <CardContent className="flex h-full flex-col p-0">
         <div className="flex items-center justify-between border-b p-3">
           <div className="flex items-center">
-            <h3 className="text-lg font-semibold">Direct Chat (OpenAI API)</h3>
+            <h3 className="text-lg font-semibold">homework AI Assistant</h3>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={handleClearChat}>

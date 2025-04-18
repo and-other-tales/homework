@@ -3,11 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 // Direct OpenAI API Chat endpoint
 export async function POST(request: NextRequest) {
   try {
-    const { message, model } = await request.json();
+    const { message, model, apiKey: clientApiKey } = await request.json();
     
-    // Get the API key from environment or localStorage
-    // For security reasons, we use a server-side environment variable if available
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Get the API key from environment variables first
+    // For security reasons, we prefer a server-side environment variable
+    let apiKey = process.env.OPENAI_API_KEY;
+    
+    // Fall back to client-provided API key if server doesn't have one
+    if (!apiKey && clientApiKey) {
+      apiKey = clientApiKey;
+      console.log("Using client-provided API key");
+    }
     
     if (!apiKey) {
       // Without an API key, return an error message
