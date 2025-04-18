@@ -16,7 +16,25 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { AlertCircle, CheckCircle2, Edit2, MessageSquare, X } from 'lucide-react';
-import { formatDate } from '../../lib/utils';
+// Import formatDate directly from date-fns to avoid path issues
+import { format, formatDistanceToNow } from 'date-fns';
+
+// Define local formatDate function
+function formatDate(date: string | Date, format = "PPp") {
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  
+  // If it's less than a day ago, show relative time
+  const now = new Date();
+  const diffMs = now.getTime() - dateObj.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  
+  if (diffHours < 24) {
+    return formatDistanceToNow(dateObj, { addSuffix: true });
+  }
+  
+  // Otherwise show formatted date
+  return format(dateObj, format);
+}
 
 type HumanInLoopTask = {
   id: string;
