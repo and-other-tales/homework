@@ -33,6 +33,35 @@ jest.mock('next/navigation', () => ({
   useParams: jest.fn().mockReturnValue({}),
 }));
 
+// Mock browser APIs that might be missing in the test environment
+if (typeof window !== 'undefined') {
+  // Mock IntersectionObserver
+  Object.defineProperty(window, 'IntersectionObserver', {
+    writable: true,
+    value: class IntersectionObserver {
+      constructor() {}
+      observe() { return null; }
+      unobserve() { return null; }
+      disconnect() { return null; }
+    }
+  });
+  
+  // Mock matchMedia
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+}
+
 // Set up any global mocks or test environment customizations here
 
 // Reset all mocks after each test
