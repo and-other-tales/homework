@@ -196,10 +196,26 @@ start_local_mode() {
     pip install -r requirements.txt
   fi
   
+  # Check if we should use HTTPS 
+  print_message "yellow" "🔒 Would you like to use HTTPS with self-signed certificates? (y/n)"
+  read use_https_response
+  
   # Start the backend server in the background
   print_message "green" "🚀 Starting backend server..."
-  python main.py web &
-  BACKEND_PID=$!
+  
+  if [[ $use_https_response == "y" || $use_https_response == "Y" ]]; then
+    # Create certs directory if it doesn't exist
+    if [ ! -d "../certs" ]; then
+      mkdir -p ../certs
+    fi
+    
+    print_message "yellow" "🔑 Generating self-signed certificates..."
+    python main.py web --https --generate-cert &
+    BACKEND_PID=$!
+  else
+    python main.py web &
+    BACKEND_PID=$!
+  fi
   
   # Store the PID for later cleanup
   echo $BACKEND_PID > .backend_pid
@@ -232,15 +248,30 @@ start_local_mode() {
   cd ..
   
   # Skip verification and just display status
-  print_message "green" "✅ Backend started on http://localhost:8080"
-  print_message "green" "✅ Frontend started on http://localhost:3000"
-  print_message "yellow" "⚠️ Note: Frontend will connect to backend via API"
+  if [[ $use_https_response == "y" || $use_https_response == "Y" ]]; then
+    print_message "green" "✅ Backend started on https://localhost:8080"
+    print_message "green" "✅ Frontend started on http://localhost:3000"
+    print_message "yellow" "⚠️ Note: Frontend will connect to backend via HTTPS API"
+    print_message "yellow" "⚠️ You may need to accept the self-signed certificate in your browser"
+  else
+    print_message "green" "✅ Backend started on http://localhost:8080"
+    print_message "green" "✅ Frontend started on http://localhost:3000"
+    print_message "yellow" "⚠️ Note: Frontend will connect to backend via API"
+  fi
   print_message "yellow" "⚠️ You may see module resolution errors in the frontend - these are being fixed inline"
   
   print_message "green" "✅ Homework application is now running!"
-  print_message "green" "📊 Dashboard: http://localhost:3000"
-  print_message "green" "💬 Chat Interface: http://localhost:3000/chat"
-  print_message "green" "🔧 API: http://localhost:8080/api"
+  if [[ $use_https_response == "y" || $use_https_response == "Y" ]]; then
+    print_message "green" "📊 Dashboard: http://localhost:3000"
+    print_message "green" "💬 Chat Interface: http://localhost:3000/chat"
+    print_message "green" "🔧 API: https://localhost:8080/api"
+    print_message "green" "📄 API Documentation: https://localhost:8080/docs"
+  else
+    print_message "green" "📊 Dashboard: http://localhost:3000"
+    print_message "green" "💬 Chat Interface: http://localhost:3000/chat"
+    print_message "green" "🔧 API: http://localhost:8080/api"
+    print_message "green" "📄 API Documentation: http://localhost:8080/docs"
+  fi
   
   print_message "yellow" "=============================================="
   print_message "yellow" "Application is running in the foreground."

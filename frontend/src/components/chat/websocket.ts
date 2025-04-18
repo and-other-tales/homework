@@ -53,11 +53,41 @@ export class WebSocketClient {
    * Determine WebSocket URL based on environment or window location
    */
   private determineWebSocketUrl(): string {
-    if (typeof window === 'undefined') {
-      return 'ws://localhost:8080/ws'; // Default for server-side
+    // Import configuration
+    let apiConfig;
+    try {
+      // Dynamic import for config (since this code runs on both server and client)
+      apiConfig = {
+        baseUrl: (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL) || 'http://localhost:8080'
+      };
+    } catch (e) {
+      // Fallback if dynamic import fails
+      apiConfig = {
+        baseUrl: 'http://localhost:8080'
+      };
     }
     
+    if (typeof window === 'undefined') {
+      // Server-side rendering
+      // Use wss for https API URLs, ws otherwise
+      const protocol = apiConfig.baseUrl.startsWith('https') ? 'wss' : 'ws';
+      const host = apiConfig.baseUrl.replace(/^https?:\/\//, '');
+      return `${protocol}://${host}/ws`;
+    }
+    
+    // Client-side rendering
+    // Prefer window location protocol when available (for automatic HTTPS detection)
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    
+    // For development where frontend and backend are on different hosts/ports
+    if (process.env.NODE_ENV === 'development') {
+      // Extract host from API URL for WebSocket
+      const apiHost = apiConfig.baseUrl.replace(/^https?:\/\//, '');
+      // Use API host but with appropriate ws/wss protocol
+      return `${protocol}://${apiHost}/ws`;
+    }
+    
+    // For production where frontend and backend are likely on same host
     const host = window.location.host;
     return `${protocol}://${host}/ws`;
   }

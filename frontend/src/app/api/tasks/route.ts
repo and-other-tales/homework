@@ -1,19 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { config } from '@/config';
+import https from 'https';
 
-// Backend API URL
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+// Backend API URL from config
+const API_URL = config.api.baseUrl;
+
+// Create custom HTTPS agent for self-signed certificates in development
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: config.api.nodeRejectUnauthorized
+});
 
 export async function GET(request: NextRequest) {
   try {
     // Forward the request to the backend
     try {
-      const response = await fetch(`${API_URL}/tasks`, {
+      // Determine if we need to handle HTTPS with self-signed certs
+      const fetchOptions: RequestInit = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ action: 'list' }),
-      });
+      };
+      
+      // Add HTTPS agent if needed (for self-signed certificates)
+      if (API_URL.startsWith('https://')) {
+        // @ts-ignore - The agent property is not in the TypeScript types
+        fetchOptions.agent = httpsAgent;
+      }
+      
+      const response = await fetch(`${API_URL}/tasks`, fetchOptions);
 
       if (response.ok) {
         const data = await response.json();
@@ -84,13 +100,22 @@ export async function POST(request: NextRequest) {
     
     // Try to forward the request to the backend
     try {
-      const response = await fetch(`${API_URL}/tasks`, {
+      // Determine if we need to handle HTTPS with self-signed certs
+      const fetchOptions: RequestInit = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
-      });
+      };
+      
+      // Add HTTPS agent if needed (for self-signed certificates)
+      if (API_URL.startsWith('https://')) {
+        // @ts-ignore - The agent property is not in the TypeScript types
+        fetchOptions.agent = httpsAgent;
+      }
+      
+      const response = await fetch(`${API_URL}/tasks`, fetchOptions);
 
       if (response.ok) {
         const data = await response.json();

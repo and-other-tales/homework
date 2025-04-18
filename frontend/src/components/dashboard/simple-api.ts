@@ -1,6 +1,7 @@
 /**
  * Ultra simple API client for dashboard components
  */
+import { config, getApiUrl } from '@/config';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -8,11 +9,28 @@ export interface ApiResponse<T = any> {
   data?: T;
 }
 
+// Helper to create fetch options with proper SSL handling
+const createFetchOptions = (options: RequestInit = {}): RequestInit => {
+  // Create a new options object to avoid modifying the input
+  const fetchOptions: RequestInit = { ...options };
+  
+  // Add node-fetch specific options for SSL certificate handling if needed
+  // This is for the server-side fetching from Next.js API routes
+  if (!fetchOptions.next) {
+    fetchOptions.next = {
+      // @ts-ignore - There's a type issue with the revalidate property
+      revalidate: 0, // Don't cache
+    };
+  }
+  
+  return fetchOptions;
+};
+
 // Most basic client possible
 export const fetchStatus = async (): Promise<ApiResponse<any>> => {
   try {
     // First try the Next.js API route
-    const response = await fetch('/api/status');
+    const response = await fetch('/api/status', createFetchOptions());
     
     if (!response.ok) {
       return {
@@ -38,7 +56,7 @@ export const fetchStatus = async (): Promise<ApiResponse<any>> => {
 export const fetchTasks = async (): Promise<ApiResponse<any>> => {
   try {
     // First try the Next.js API route
-    const response = await fetch('/api/tasks');
+    const response = await fetch('/api/tasks', createFetchOptions());
     
     if (!response.ok) {
       return {
@@ -84,7 +102,7 @@ export const fetchTasks = async (): Promise<ApiResponse<any>> => {
 export const cancelTask = async (taskId: string): Promise<ApiResponse<any>> => {
   try {
     // First try the Next.js API route
-    const response = await fetch('/api/tasks', {
+    const response = await fetch('/api/tasks', createFetchOptions({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -93,7 +111,7 @@ export const cancelTask = async (taskId: string): Promise<ApiResponse<any>> => {
         action: 'cancel',
         task_id: taskId,
       }),
-    });
+    }));
     
     if (!response.ok) {
       return {
