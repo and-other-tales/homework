@@ -1719,14 +1719,14 @@ def run_web_ui():
         print("\nOpenAPI key not configured. Setting temporary key for this session.")
         api_key = "temporary_key_" + str(time.time())
     
-    # Start server with UI enabled
+    # Start server with UI enabled (no static/templates needed)
     print(f"\nStarting web UI on port {port}...")
     server_info = start_server_with_ui(api_key, port=port)
     
     if server_info:
-        print(f"Web UI running at: {server_info['web_ui_url']}")
-        print(f"Chat Interface available at: {server_info['chat_url']}")
+        print(f"Backend API running at: {server_info['web_ui_url']}")
         print(f"API Documentation: {server_info['api_docs_url']}")
+        print(f"Frontend should be started separately with 'cd frontend && npm run dev'")
         return True
     else:
         print("Failed to start web UI")

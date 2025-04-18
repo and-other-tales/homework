@@ -15,8 +15,8 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { formatDate } from '@/lib/utils';
 import { AlertCircle, CheckCircle2, Edit2, MessageSquare, X } from 'lucide-react';
+import { formatDate } from '../../lib/utils';
 
 type HumanInLoopTask = {
   id: string;
