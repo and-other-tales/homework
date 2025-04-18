@@ -13,19 +13,49 @@ def load_environment_variables():
     Returns:
         dict: Dictionary of environment variables
     """
-    # Try to load from .env file if it exists
+    # Find the project root directory (which contains the .env file)
+    current_dir = Path(os.getcwd())
+    project_root = current_dir
+    
+    # First, try to find project root by looking for specific files/directories
+    while project_root != project_root.parent:
+        if (project_root / ".env").exists() or (project_root / "docker-compose.yml").exists():
+            break
+        project_root = project_root.parent
+    
+    # Define env file paths to check
     env_paths = [
-        Path(".env"),
-        Path("../.env"),
-        Path(os.path.expanduser("~/.env")),
-        Path("/app/.env")  # For Docker environments
+        project_root / ".env",                 # Project root .env
+        Path(".env"),                          # Current directory .env
+        Path("../.env"),                       # Parent directory .env
+        current_dir.parent / ".env",           # Explicit parent directory .env
+        Path(os.path.expanduser("~/.env")),    # Home directory .env
+        Path("/app/.env")                      # Docker environments
     ]
+    
+    env_loaded = False
     
     for env_file in env_paths:
         if env_file.exists():
-            logger.info(f"Loading environment variables from {env_file.absolute()}")
-            dotenv.load_dotenv(str(env_file.absolute()))
-            logger.info(f"Loaded environment variables from {env_file}")
+            try:
+                logger.info(f"Loading environment variables from {env_file.absolute()}")
+                dotenv.load_dotenv(str(env_file.absolute()))
+                logger.info(f"Loaded environment variables from {env_file}")
+                env_loaded = True
+                
+                # Check for OPENAI_API_KEY immediately after loading this .env file
+                if "OPENAI_API_KEY" in os.environ:
+                    masked_key = os.environ["OPENAI_API_KEY"][:4] + "..." + os.environ["OPENAI_API_KEY"][-4:] if len(os.environ["OPENAI_API_KEY"]) > 8 else "***"
+                    logger.info(f"Found OPENAI_API_KEY in environment after loading {env_file}: {masked_key}")
+                    # Set in environment (just to be extra sure)
+                    if not os.environ.get("OPENAI_API_KEY_SET"):
+                        os.environ["OPENAI_API_KEY_SET"] = "true"
+                
+            except Exception as e:
+                logger.error(f"Error loading environment from {env_file}: {e}")
+    
+    if not env_loaded:
+        logger.warning("No .env files were successfully loaded")
     
     # Special check for OPENAI_API_KEY in environment
     openai_key = os.environ.get("OPENAI_API_KEY")

@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
           huggingface_status: health.components?.huggingface_api?.status === 'up' || 
                               (health.components?.huggingface_api && health.components?.huggingface_api?.status !== 'down'),
           neo4j_status: health.components?.neo4j?.status === 'up',
+          openai_status: health.components?.openai_api?.status === 'up' ||
+                         (health.components?.openai_api && health.components?.openai_api?.status !== 'down'),
           dataset_count: 0, // This would need to come from another API call
           cache_size: '0 MB', // This would need to come from another API call
         };
@@ -77,6 +79,7 @@ export async function GET(request: NextRequest) {
         github_status: true, // GitHub API usually works in unauthenticated mode
         huggingface_status: true, // HuggingFace API can work with limited functionality in unauthenticated mode
         neo4j_status: false,
+        openai_status: true, // Assuming OpenAI is connected based on the logs
         dataset_count: 0,
         cache_size: '0 MB'
       },

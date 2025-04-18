@@ -29,6 +29,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine API key to use (client-provided key or server's key)
+    let effectiveApiKey = apiKey;
+    
+    // If no client-provided key, try to use server's OPENAI_API_KEY from environment
+    if (!effectiveApiKey) {
+      effectiveApiKey = process.env.OPENAI_API_KEY;
+      
+      if (effectiveApiKey) {
+        console.log("Using server's OPENAI_API_KEY from environment");
+      } else {
+        console.warn("No API key provided and no OPENAI_API_KEY found in environment");
+      }
+    }
+
     // Call the backend API
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
     const apiEndpoint = `${backendUrl}/api/agent/tasks`;
@@ -37,7 +51,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(apiKey && { 'X-API-KEY': apiKey })
+        ...(effectiveApiKey && { 'X-API-KEY': effectiveApiKey })
       },
       body: JSON.stringify({
         task_type,

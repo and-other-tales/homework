@@ -53,21 +53,67 @@ class TaskStatusResponse(BaseModel):
 # Dependency for getting an LLM client
 async def get_llm_client():
     """Get an initialized LLM client."""
-    credentials_manager = CredentialsManager()
-    openai_key = credentials_manager.get_openai_key()
+    # First check environment directly for OPENAI_API_KEY
+    import os
+    from utils.env_loader import load_environment_variables
+    
+    # Force reload environment variables
+    env_vars = load_environment_variables()
+    
+    # Try environment first
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    
+    # If not found in environment, try credentials manager
+    if not openai_key:
+        credentials_manager = CredentialsManager()
+        openai_key = credentials_manager.get_openai_key()
+    
+    if not openai_key:
+        # One last attempt - read the .env file directly
+        try:
+            from pathlib import Path
+            import re
+            
+            env_paths = [
+                Path(".env"),
+                Path("../.env"),
+                Path(os.path.join(os.path.dirname(__file__), "../../.env")),
+            ]
+            
+            for env_path in env_paths:
+                if env_path.exists():
+                    logger.info(f"Reading .env file directly from {env_path}")
+                    env_content = env_path.read_text()
+                    key_match = re.search(r'OPENAI_API_KEY=(.+)', env_content)
+                    
+                    if key_match:
+                        openai_key = key_match.group(1).strip()
+                        logger.info("Found OpenAI API key directly in .env file")
+                        # Set it in environment for future use
+                        os.environ["OPENAI_API_KEY"] = openai_key
+                        break
+        except Exception as e:
+            logger.error(f"Error reading .env file directly: {e}")
     
     if not openai_key:
         raise HTTPException(
             status_code=500,
-            detail="OpenAI API key not configured"
+            detail="OpenAI API key not configured. Please set OPENAI_API_KEY in .env file or environment."
         )
     
+    # Log that we found the key (with masking)
+    masked_key = openai_key[:4] + "..." + openai_key[-4:] if len(openai_key) > 8 else "***"
+    logger.info(f"Using OpenAI API key: {masked_key}")
+    
+    # Create LLM client with key
+    credentials_manager = CredentialsManager()
     return LLMClient(api_key=openai_key, credentials_manager=credentials_manager)
 
 @router.post("/agent/tasks", response_model=AgentTaskResponse, tags=["Agent"])
 async def create_agent_task(
     request: AgentTaskRequest,
-    llm_client: LLMClient = Depends(get_llm_client)
+    llm_client: LLMClient = Depends(get_llm_client),
+    api_key: str = Header(None, alias="X-API-KEY")
 ):
     """
     Create a new agent task for processing.
@@ -75,6 +121,13 @@ async def create_agent_task(
     This endpoint accepts various types of agent tasks and processes them asynchronously.
     A task ID is immediately returned, which can be used to check status later.
     """
+    # Check if we got an API key from the frontend, and if we need to update our LLM client
+    if api_key and not llm_client.api_key:
+        logger.info("Using API key provided by frontend request")
+        llm_client.api_key = api_key
+        # Set it in the environment for other parts of the app
+        os.environ["OPENAI_API_KEY"] = api_key
+    
     task_id = str(uuid.uuid4())
     task_tracker = TaskTracker()
     

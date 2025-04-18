@@ -33,29 +33,70 @@ class LLMClient:
             api_key: The OpenAI API key
             credentials_manager: Optional credentials manager to get credentials
         """
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
+        # First check if API key was provided directly
+        self.api_key = api_key
         self.model = "gpt-3.5-turbo"  # Default model
         self._agents_mode = False  # Whether to use the Agents SDK
         self.credentials_manager = credentials_manager
         
+        # If no API key was provided, try to get it from environment
+        if not self.api_key:
+            # Force load environment variables again to ensure we get the latest
+            from utils.env_loader import load_environment_variables
+            load_environment_variables()
+            
+            # Check environment directly
+            env_key = os.environ.get("OPENAI_API_KEY")
+            if env_key:
+                logger.info("Using OpenAI API key from environment")
+                self.api_key = env_key
+        
+        # If still no API key, try credentials manager
         if not self.api_key and credentials_manager:
-            # Try to get API key from credentials manager
             try:
                 self.api_key = credentials_manager.get_openai_key()
+                if self.api_key:
+                    logger.info("Using OpenAI API key from credentials manager")
             except Exception as e:
                 logger.error(f"Error getting OpenAI key from credentials manager: {e}")
         
+        # If still no API key, try to read .env file directly (last resort)
         if not self.api_key:
-            logger.warning("No OpenAI API key provided")
+            try:
+                # Try to find .env file in common locations
+                import re
+                from pathlib import Path
+                
+                env_paths = [
+                    Path(".env"),
+                    Path("../.env"),
+                    Path(os.path.join(os.path.dirname(__file__), "../../.env")),
+                    Path(os.path.expanduser("~/.env")),
+                ]
+                
+                for env_path in env_paths:
+                    if env_path.exists():
+                        logger.info(f"Reading .env file directly from {env_path}")
+                        env_content = env_path.read_text()
+                        key_match = re.search(r'OPENAI_API_KEY=(.+)', env_content)
+                        
+                        if key_match:
+                            self.api_key = key_match.group(1).strip()
+                            logger.info("Found OpenAI API key directly in .env file")
+                            break
+            except Exception as e:
+                logger.error(f"Error reading .env file directly: {e}")
+        
+        if not self.api_key:
+            logger.warning("No OpenAI API key provided. Many features will not work.")
         else:
             logger.info("LLM client initialized with API key")
             # Set the API key in the environment for Agents SDK
             os.environ["OPENAI_API_KEY"] = self.api_key
             
             # Log a masked version of the key for debugging
-            if self.api_key:
-                masked_key = self.api_key[:4] + "..." + self.api_key[-4:] if len(self.api_key) > 8 else "***"
-                logger.debug(f"Using API key starting with {masked_key}")
+            masked_key = self.api_key[:4] + "..." + self.api_key[-4:] if len(self.api_key) > 8 else "***"
+            logger.info(f"Using API key starting with {masked_key}")
                 
             # Try to initialize the Agents SDK
             agents_sdk = get_agents_sdk()

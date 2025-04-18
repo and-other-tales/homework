@@ -306,6 +306,7 @@ async def health_check():
             "neo4j": {"status": "unknown"},
             "huggingface_api": {"status": "unknown"},
             "github_api": {"status": "unknown"},
+            "openai_api": {"status": "unknown"},
         },
         "system": {
             "memory_usage": 0,
@@ -379,6 +380,43 @@ async def health_check():
         health_status["components"]["github_api"]["status"] = "up"
     except Exception as e:
         health_status["components"]["github_api"] = {
+            "status": "down",
+            "error": str(e)
+        }
+        # This is not critical for most operations, so we don't degrade overall status
+    
+    # Check OpenAI API access
+    try:
+        from utils.llm_client import LLMClient
+        from config.credentials_manager import CredentialsManager
+        
+        creds_manager = CredentialsManager()
+        llm_client = LLMClient(credentials_manager=creds_manager)
+        
+        if llm_client.api_key:
+            # We have an API key, check if it's valid
+            import requests
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {llm_client.api_key}"
+            }
+            
+            # Just make a simple request to check if the API key is valid
+            response = requests.get(
+                "https://api.openai.com/v1/models",
+                headers=headers,
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                health_status["components"]["openai_api"]["status"] = "up"
+            else:
+                health_status["components"]["openai_api"]["status"] = "down"
+                health_status["components"]["openai_api"]["error"] = f"API error: {response.status_code}"
+        else:
+            health_status["components"]["openai_api"]["status"] = "unconfigured"
+    except Exception as e:
+        health_status["components"]["openai_api"] = {
             "status": "down",
             "error": str(e)
         }
