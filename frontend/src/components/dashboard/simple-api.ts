@@ -1,7 +1,6 @@
 /**
- * Ultra simple API client for dashboard components
+ * Simple API client for dashboard functionality
  */
-import { config, getApiUrl } from '@/config';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -9,36 +8,35 @@ export interface ApiResponse<T = any> {
   data?: T;
 }
 
-// Helper to create fetch options with proper SSL handling
-const createFetchOptions = (options: RequestInit = {}): RequestInit => {
-  // Create a new options object to avoid modifying the input
-  const fetchOptions: RequestInit = { ...options };
-  
-  // Add node-fetch specific options for SSL certificate handling if needed
-  // This is for the server-side fetching from Next.js API routes
-  if (!fetchOptions.next) {
-    fetchOptions.next = {
-      // @ts-ignore - There's a type issue with the revalidate property
-      revalidate: 0, // Don't cache
-    };
-  }
-  
-  return fetchOptions;
-};
+// Helper function to create consistent fetch options
+function createFetchOptions(options: RequestInit = {}): RequestInit {
+  const defaultOptions: RequestInit = {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
 
-// Most basic client possible
+  return {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultOptions.headers,
+      ...options.headers,
+    },
+  };
+}
+
 export const fetchStatus = async (): Promise<ApiResponse<any>> => {
   try {
-    // First try the Next.js API route
     const response = await fetch('/api/status', createFetchOptions());
-    
+
     if (!response.ok) {
       return {
         success: false,
         message: `API Error: ${response.status} - ${response.statusText}`,
       };
     }
-    
+
     return {
       success: true,
       message: "Success",
@@ -55,20 +53,17 @@ export const fetchStatus = async (): Promise<ApiResponse<any>> => {
 
 export const fetchTasks = async (): Promise<ApiResponse<any>> => {
   try {
-    // First try the Next.js API route
     const response = await fetch('/api/tasks', createFetchOptions());
-    
+
     if (!response.ok) {
       return {
         success: false,
         message: `API Error: ${response.status} - ${response.statusText}`,
       };
     }
-    
-    // Parse the response data
+
     const responseData = await response.json();
-    
-    // Check if the response contains the expected format
+
     if (responseData.success && responseData.data?.tasks) {
       return {
         success: true,
@@ -76,14 +71,12 @@ export const fetchTasks = async (): Promise<ApiResponse<any>> => {
         data: responseData.data,
       };
     } else if (responseData.tasks) {
-      // Handle alternative response format
       return {
         success: true,
         message: "Success",
         data: { tasks: responseData.tasks },
       };
     } else {
-      // Fallback for any response format
       return {
         success: true,
         message: "Success",
@@ -101,25 +94,21 @@ export const fetchTasks = async (): Promise<ApiResponse<any>> => {
 
 export const cancelTask = async (taskId: string): Promise<ApiResponse<any>> => {
   try {
-    // First try the Next.js API route
     const response = await fetch('/api/tasks', createFetchOptions({
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
         action: 'cancel',
         task_id: taskId,
       }),
     }));
-    
+
     if (!response.ok) {
       return {
         success: false,
         message: `API Error: ${response.status} - ${response.statusText}`,
       };
     }
-    
+
     return {
       success: true,
       message: "Task cancelled successfully",
@@ -127,6 +116,47 @@ export const cancelTask = async (taskId: string): Promise<ApiResponse<any>> => {
     };
   } catch (error) {
     console.error('Error cancelling task:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};
+
+export const fetchHumanInLoopTasks = async (): Promise<ApiResponse<any>> => {
+  try {
+    const response = await fetch('/api/agent-tasks/human', createFetchOptions());
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `API Error: ${response.status} - ${response.statusText}`,
+      };
+    }
+
+    const responseData = await response.json();
+
+    if (responseData.success && responseData.data?.tasks) {
+      return {
+        success: true,
+        message: responseData.message || "Success",
+        data: responseData.data,
+      };
+    } else if (responseData.tasks) {
+      return {
+        success: true,
+        message: "Success",
+        data: { tasks: responseData.tasks },
+      };
+    } else {
+      return {
+        success: true,
+        message: "Success",
+        data: { tasks: [] },
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching human-in-loop tasks:', error);
     return {
       success: false,
       message: error instanceof Error ? error.message : "Unknown error",

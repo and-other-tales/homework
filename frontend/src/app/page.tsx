@@ -3,11 +3,8 @@
 import PageLayout from "@/components/layout/page-layout";
 import { NewTaskModal, NewTaskModalHandle } from "@/components/dashboard/new-task-modal";
 import { DashboardCards } from "@/components/dashboard/dashboard-cards";
-import { DashboardTaskList } from "@/components/dashboard/task-list";
-import { AgentInboxDashboard } from "@/components/dashboard/agent-inbox-dashboard";
+import { UnifiedTaskManager } from "@/components/dashboard/unified-task-manager";
 import { useRef } from "react";
-
-// Metadata needs to be in a separate layout file for client components
 
 export default function DashboardPage() {
   // This ref allows us to control the modal from outside
@@ -31,9 +28,11 @@ export default function DashboardPage() {
       }}
     >
       <div className="space-y-6">
+        {/* Top row with status cards */}
         <DashboardCards />
-        <DashboardTaskList />
-        <AgentInboxDashboard />
+        
+        {/* Unified task management */}
+        <UnifiedTaskManager />
       </div>
       <NewTaskModal ref={modalRef} />
     </PageLayout>
