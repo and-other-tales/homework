@@ -5,16 +5,26 @@ const config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    // Fix the regex pattern for frontend imports in tests
-    '\\.\\.[\\\\/]\\.\\./frontend/src/(.*)$': '<rootDir>/src/$1',
-    // Mock problematic modules
+    // Fix path mapping for imports from frontend in tests
+    // Match both Windows and Unix-style paths with a more reliable pattern
+    '^../../frontend/src/(.*)$': '<rootDir>/src/$1',
+    // Mock Node modules that might be missing
+    '^react$': 'react',
+    '^react-dom$': 'react-dom',
     '^sonner$': '<rootDir>/__mocks__/sonner.js',
     '^next/navigation$': '<rootDir>/__mocks__/next/navigation.js',
     '^next/link$': '<rootDir>/__mocks__/next/link.js',
     '^next/image$': '<rootDir>/__mocks__/next/image.js',
     '^next/router$': '<rootDir>/__mocks__/next/router.js',
     // Mock Babel runtime helpers
-    '@babel/runtime/helpers/interopRequireDefault': '<rootDir>/__mocks__/interopRequireDefault.js'
+    '@babel/runtime/helpers/interopRequireDefault': '<rootDir>/__mocks__/babel-runtime/interopRequireDefault.js',
+    '@babel/runtime/helpers/defineProperty': '<rootDir>/__mocks__/babel-runtime/defineProperty.js',
+    '@babel/runtime/helpers/extends': '<rootDir>/__mocks__/babel-runtime/extends.js',
+    '@babel/runtime/helpers/objectWithoutProperties': '<rootDir>/__mocks__/babel-runtime/objectWithoutProperties.js',
+    '@babel/runtime/helpers/objectWithoutPropertiesLoose': '<rootDir>/__mocks__/babel-runtime/objectWithoutPropertiesLoose.js',
+    '@babel/runtime/helpers/inherits': '<rootDir>/__mocks__/babel-runtime/inherits.js',
+    '@babel/runtime/helpers/createClass': '<rootDir>/__mocks__/babel-runtime/createClass.js',
+    '@babel/runtime/helpers/classCallCheck': '<rootDir>/__mocks__/babel-runtime/classCallCheck.js'
   },
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }]
@@ -30,7 +40,7 @@ const config = {
     '<rootDir>/node_modules/',
     '<rootDir>/.next/'
   ],
-  moduleDirectories: ['node_modules', '<rootDir>'],
+  moduleDirectories: ['node_modules', '<rootDir>', '../node_modules'],
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx'],
   testMatch: [
     '**/__tests__/**/*.+(ts|tsx|js|jsx)',
