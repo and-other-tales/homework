@@ -1,6 +1,10 @@
 // Import testing library extensions
 import '@testing-library/jest-dom';
 
+// Ensure React is globally available
+import React from 'react';
+global.React = React;
+
 // Mock Next.js router - define mocks inline in the factory function
 jest.mock('next/router', () => ({
   useRouter: jest.fn().mockReturnValue({
@@ -43,7 +47,18 @@ if (typeof window !== 'undefined') {
       disconnect() { return null; }
     }
   });
-  
+
+  // Mock ResizeObserver
+  Object.defineProperty(window, 'ResizeObserver', {
+    writable: true,
+    value: class ResizeObserver {
+      constructor() {}
+      observe() { return null; }
+      unobserve() { return null; }
+      disconnect() { return null; }
+    }
+  });
+
   // Mock matchMedia
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -58,26 +73,16 @@ if (typeof window !== 'undefined') {
       dispatchEvent: jest.fn(),
     })),
   });
-  
+
   // Mock window.scrollTo
   window.scrollTo = jest.fn();
-  
-  // Mock window.fetch if needed
-  window.fetch = jest.fn().mockImplementation(() => 
-    Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({}),
-      text: () => Promise.resolve(""),
-      blob: () => Promise.resolve(new Blob()),
-    })
-  );
 }
 
 // Set current date for consistent testing
 jest.useFakeTimers();
 jest.setSystemTime(new Date('2023-06-01T12:00:00Z'));
 
-// Reset all mocks after each test
-afterEach(() => {
+// Reset all mocks before each test
+beforeEach(() => {
   jest.clearAllMocks();
 });
