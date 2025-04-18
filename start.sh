@@ -336,6 +336,22 @@ fi
 # Run in the homework-app directory
 cd "$(dirname "$0")"
 
+# Check for --cli flag
+CLI_ONLY=false
+for arg in "$@"
+do
+  if [ "$arg" == "--cli" ]; then
+    CLI_ONLY=true
+  fi
+done
+
+if [ "$CLI_ONLY" = true ]; then
+  print_message "green" "✅ Starting backend CLI only..."
+  cd backend
+  python main.py
+  exit 0
+fi
+
 # Check command line arguments
 if [ "$1" == "--docker" ]; then
   start_docker_mode

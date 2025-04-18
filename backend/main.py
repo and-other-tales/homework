@@ -63,13 +63,15 @@ def run_cli():
             print("7. Launch Web UI")
             print("8. Configuration")
             print("9. Exit")
-            max_choice = 9
+            print("10. Run AI Assistant (full functionality)")
+            max_choice = 10
         else:
             print("5. Scheduled Tasks & Automation")
             print("6. Launch Web UI")
             print("7. Configuration")
             print("8. Exit")
-            max_choice = 8
+            print("9. Run AI Assistant (full functionality)")
+            max_choice = 9
         
         choice = input(f"\nEnter your choice (1-{max_choice}): ")
         
@@ -1598,6 +1600,12 @@ def run_cli():
             else:
                 print("Invalid choice")
                 
+        # Run AI Assistant (position depends on whether Resume Dataset Creation is available)
+        elif (choice == "9" and not resumable_tasks) or (choice == "10" and resumable_tasks):
+            print("\nStarting AI Assistant...")
+            from ai.assistant import run_full_ai_assistant
+            run_full_ai_assistant()
+        
         # Exit application (position depends on whether Resume Dataset Creation is available)
         elif (choice == "8" and not resumable_tasks) or (choice == "9" and resumable_tasks):
             # Check if the server is running before exiting
