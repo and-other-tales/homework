@@ -55,14 +55,54 @@ EOF
   print_message "green" "✅ Python modules setup complete."
 }
 
+# Activate virtual environment with better platform detection
+activate_virtual_env() {
+  print_message "yellow" "🔄 Activating Python virtual environment..."
+  
+  # Check if we're on Windows or Unix-like system
+  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
+    # Windows path
+    if [ -f "venv/Scripts/activate" ]; then
+      source venv/Scripts/activate
+    else
+      print_message "red" "❌ Virtual environment activation script not found at venv/Scripts/activate"
+      print_message "yellow" "🔄 Creating new virtual environment..."
+      python -m venv venv
+      if [ -f "venv/Scripts/activate" ]; then
+        source venv/Scripts/activate
+      else
+        print_message "red" "❌ Failed to create usable virtual environment"
+        exit 1
+      fi
+    fi
+  else
+    # Unix-like path
+    if [ -f "venv/bin/activate" ]; then
+      source venv/bin/activate
+    else
+      print_message "red" "❌ Virtual environment activation script not found at venv/bin/activate"
+      print_message "yellow" "🔄 Creating new virtual environment..."
+      python3 -m venv venv || python -m venv venv
+      if [ -f "venv/bin/activate" ]; then
+        source venv/bin/activate
+      else
+        print_message "red" "❌ Failed to create usable virtual environment"
+        exit 1
+      fi
+    fi
+  fi
+  
+  print_message "green" "✅ Virtual environment activated successfully."
+}
+
 # Perform backend checks and ensure dependencies are installed
 check_backend_dependencies() {
   print_message "yellow" "🔍 Checking backend dependencies..."
   
-  # Check for required pip packages and install if missing
-  source backend/venv/bin/activate 2>/dev/null || source backend/venv/Scripts/activate
+  # Activate virtual environment
+  activate_virtual_env
   
-  # Check for specific packages
+  # Check for required pip packages and install if missing
   python -c "import fastapi" 2>/dev/null || pip install fastapi uvicorn
   python -c "import starlette" 2>/dev/null || pip install starlette
   
@@ -155,12 +195,6 @@ start_local_mode() {
   if [ ! -d "venv" ]; then
     print_message "yellow" "📝 Creating Python virtual environment..."
     python3 -m venv venv 2>/dev/null || python -m venv venv
-    
-    print_message "yellow" "📝 Installing Python dependencies..."
-    source venv/bin/activate || source venv/Scripts/activate
-    pip install -r requirements.txt
-  else
-    source venv/bin/activate || source venv/Scripts/activate
   fi
   
   # Ensure all dependencies are installed
