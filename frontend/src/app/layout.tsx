@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'
+import { SetupWizardWrapper } from '@/components/setup-wizard-wrapper'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -26,24 +27,4 @@ export default function RootLayout({
       </body>
     </html>
   )
-}
-
-// Client component wrapper
-'use client';
-import { useState, useEffect } from 'react';
-import { SetupWizard } from '@/components/setup-wizard';
-
-function SetupWizardWrapper() {
-  const [mounted, setMounted] = useState(false);
-  
-  // Mark as mounted after component is rendered
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
-
-  return <SetupWizard />;
 }

@@ -34,9 +34,10 @@ export default function ConfigurationPage() {
     server_port: '8080'
   });
 
-  // Load configuration status on mount
+  // Load configuration status and saved form state on mount
   useEffect(() => {
     loadConfigurationStatus();
+    loadSavedFormState();
   }, []);
 
   const loadConfigurationStatus = async () => {
@@ -64,13 +65,53 @@ export default function ConfigurationPage() {
       setLoading(false);
     }
   };
+  
+  const loadSavedFormState = () => {
+    try {
+      const savedState = localStorage.getItem('homework_config_state');
+      if (savedState) {
+        const parsedState = JSON.parse(savedState);
+        
+        // We don't want to overwrite the default values with empty strings
+        // Only update if there's a non-empty value or the field isn't sensitive
+        const newConfig = {...config};
+        
+        Object.keys(parsedState).forEach(key => {
+          // For non-sensitive fields, always use saved value
+          if (!key.includes('password') && !key.includes('token') && !key.includes('key')) {
+            newConfig[key] = parsedState[key];
+          } 
+          // For sensitive fields, only use saved value if it's not empty
+          else if (parsedState[key]) {
+            newConfig[key] = parsedState[key];
+          }
+        });
+        
+        setConfig(newConfig);
+      }
+    } catch (error) {
+      console.error('Error loading saved form state:', error);
+      // Don't show toast for this error as it's not critical
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setConfig({
+    const newConfig = {
       ...config,
       [name]: value
-    });
+    };
+    setConfig(newConfig);
+    
+    // Save to localStorage (excluding sensitive values)
+    const persistConfig = {...newConfig};
+    
+    // Don't save passwords/tokens to localStorage for security
+    if (name.includes('password') || name.includes('token') || name.includes('key')) {
+      persistConfig[name] = ''; // Clear sensitive value
+    }
+    
+    localStorage.setItem('homework_config_state', JSON.stringify(persistConfig));
   };
 
   const handleSaveConfiguration = async () => {
@@ -113,7 +154,19 @@ export default function ConfigurationPage() {
         toast.success('Configuration saved successfully');
         await loadConfigurationStatus();
         
-        // Clear sensitive fields
+        // Create a sanitized config for localStorage that keeps non-sensitive values
+        const sanitizedConfig = {
+          ...config,
+          huggingface_token: '',
+          github_token: '',
+          openai_api_key: '',
+          neo4j_password: ''
+        };
+        
+        // Update localStorage with non-sensitive values
+        localStorage.setItem('homework_config_state', JSON.stringify(sanitizedConfig));
+        
+        // Clear sensitive fields in the form
         setConfig({
           ...config,
           huggingface_token: '',

@@ -90,6 +90,31 @@ export function SetupWizard() {
   useEffect(() => {
     const checkEnvironment = async () => {
       try {
+        // Check if we have saved state for the wizard
+        const savedState = localStorage.getItem('setup_wizard_state');
+        
+        if (savedState) {
+          const parsedState = JSON.parse(savedState);
+          
+          // If we have saved state, update the config items
+          if (parsedState.configItems) {
+            // For security, don't load sensitive values from localStorage
+            const loadedItems = parsedState.configItems.map(item => {
+              if (item.type === 'password') {
+                return {...item, value: ''};
+              }
+              return item;
+            });
+            
+            setConfigItems(loadedItems);
+          }
+          
+          // If we have a saved step, use it
+          if (parsedState.step !== undefined) {
+            setStep(parsedState.step);
+          }
+        }
+        
         // Try to get server status
         const response = await simpleApiClient.getStatus();
         
@@ -125,6 +150,20 @@ export function SetupWizard() {
     const updatedItems = [...configItems];
     updatedItems[index].value = value;
     setConfigItems(updatedItems);
+    
+    // Save to localStorage for persistence
+    // For security, create a copy without sensitive values
+    const persistItems = updatedItems.map(item => {
+      if (item.type === 'password') {
+        return {...item, value: ''};
+      }
+      return item;
+    });
+    
+    localStorage.setItem('setup_wizard_state', JSON.stringify({
+      configItems: persistItems,
+      step
+    }));
   };
 
   const handleDeployNeo4j = async () => {
@@ -191,7 +230,16 @@ export function SetupWizard() {
 
   const handleBack = () => {
     if (step > 0) {
-      setStep(step - 1);
+      const newStep = step - 1;
+      setStep(newStep);
+      
+      // Save step to localStorage
+      const savedState = localStorage.getItem('setup_wizard_state');
+      const stateObject = savedState ? JSON.parse(savedState) : {};
+      localStorage.setItem('setup_wizard_state', JSON.stringify({
+        ...stateObject,
+        step: newStep
+      }));
     }
   };
 
@@ -204,7 +252,16 @@ export function SetupWizard() {
     }
     
     if (step < configItems.length - 1) {
-      setStep(step + 1);
+      const newStep = step + 1;
+      setStep(newStep);
+      
+      // Save step to localStorage
+      const savedState = localStorage.getItem('setup_wizard_state');
+      const stateObject = savedState ? JSON.parse(savedState) : {};
+      localStorage.setItem('setup_wizard_state', JSON.stringify({
+        ...stateObject,
+        step: newStep
+      }));
     } else {
       saveConfiguration();
     }
@@ -234,6 +291,9 @@ export function SetupWizard() {
       if (response.ok) {
         // Configuration saved successfully
         setOpen(false);
+        
+        // Clear the wizard state from localStorage
+        localStorage.removeItem('setup_wizard_state');
         
         // Reload the page to apply new configuration
         window.location.reload();
