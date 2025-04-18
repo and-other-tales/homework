@@ -8,12 +8,15 @@
     "test:backend": "node run-tests.js --testMatch='**/tests/backend/**/*.test.(ts|tsx|js|jsx)'"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-react": "^7.26.3",
+    "@babel/preset-typescript": "^7.27.0",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.4.3",
-    "jest": "^29.5.0",
-    "jest-environment-jsdom": "^29.5.0",
+    "babel-jest": "^29.5.0",
     "identity-obj-proxy": "^3.0.0",
-    "babel-jest": "^29.5.0"
+    "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.5.0"
   }
 }

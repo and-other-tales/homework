@@ -6,20 +6,43 @@ const { execSync } = require('child_process');
 const { existsSync } = require('fs');
 const path = require('path');
 
-// Determine the proper Jest path
-let jestPath;
-const possiblePaths = [
-  path.resolve(__dirname, 'node_modules', '.bin', 'jest'),
-  path.resolve(__dirname, 'node_modules', '.bin', 'jest.cmd'),
-  path.resolve(__dirname, 'node_modules', 'jest', 'bin', 'jest.js')
+// Debug information
+console.log('Current working directory:', process.cwd());
+console.log('Script directory:', __dirname);
+
+// Locations to check for Jest
+const directoriesToCheck = [
+  // Current project
+  __dirname,
+  // Frontend project
+  path.resolve(__dirname, 'frontend'),
+  // Parent directory (if called from frontend)
+  path.resolve(process.cwd(), '..')
 ];
 
-// Find the first existing Jest path
-for (const testPath of possiblePaths) {
-  if (existsSync(testPath)) {
-    jestPath = testPath;
-    break;
+// Determine the proper Jest path
+let jestPath;
+
+// Check each possible location
+for (const baseDir of directoriesToCheck) {
+  console.log(`Checking for Jest in ${baseDir}...`);
+  
+  const possiblePaths = [
+    path.join(baseDir, 'node_modules', '.bin', 'jest'),
+    path.join(baseDir, 'node_modules', '.bin', 'jest.cmd'),
+    path.join(baseDir, 'node_modules', 'jest', 'bin', 'jest.js')
+  ];
+
+  // Find the first existing Jest path
+  for (const testPath of possiblePaths) {
+    if (existsSync(testPath)) {
+      console.log(`Found Jest at: ${testPath}`);
+      jestPath = testPath;
+      break;
+    }
   }
+  
+  if (jestPath) break;
 }
 
 if (!jestPath) {
