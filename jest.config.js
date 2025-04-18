@@ -9,7 +9,7 @@ module.exports = {
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '^@/(.*)$': '<rootDir>/frontend/src/$1',
-    '^../../frontend/src/(.*)$': '<rootDir>/frontend/src/$1'
+    '^../../frontend/src/lib/api/(.*)$': '<rootDir>/frontend/__mocks__/lib/api/$1'
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testMatch: [
