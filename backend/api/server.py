@@ -408,13 +408,17 @@ async def health_check():
         # psutil not available, skip system metrics
         pass
     
-    # Return 503 Service Unavailable if status is not healthy
+    # For now, always return 200 OK even if some services are missing
+    # This prevents dashboard showing unavailable even when core functionality works
+    # We'll indicate in the response that the status might be degraded
     if health_status["status"] != "healthy":
-        from fastapi import status
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service is degraded or unhealthy"
-        )
+        health_status["message"] = "Service is running with limited functionality"
+        # Don't raise HTTPException - just return degraded status
+        # from fastapi import status
+        # raise HTTPException(
+        #     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        #     detail="Service is degraded or unhealthy"
+        # )
     
     return health_status
 

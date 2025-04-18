@@ -39,6 +39,8 @@ class ChatHandler:
                 logger.info("LLM client initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize LLM client: {e}")
+        else:
+            logger.warning("OpenAI API key not found, LLM features will be limited")
         
         # Initialize GitHub client if credentials are available
         try:
@@ -117,11 +119,21 @@ class ChatHandler:
     
     async def _process_text_message(self, content: str, websocket: WebSocket, client_id: str):
         """Process a text message, potentially using LLM."""
-        # Check if LLM is available
+        # Try to initialize LLM client again if it's not available
+        if not self.llm_client:
+            try:
+                openai_key = self.credentials_manager.get_openai_key()
+                if openai_key:
+                    self.llm_client = LLMClient(api_key=openai_key)
+                    logger.info("LLM client initialized on first message")
+            except Exception as e:
+                logger.error(f"Failed to initialize LLM client on demand: {e}")
+                
+        # Check if LLM is available after retry attempt
         if not self.llm_client:
             await self._send_error(
                 websocket, 
-                "LLM service is not available. Please configure OpenAI API key in settings."
+                "OpenAI API key not configured. Please go to the Configuration page and set up your OpenAI API key."
             )
             return
         

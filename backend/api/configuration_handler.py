@@ -123,13 +123,45 @@ class ConfigurationHandler:
     def get_configuration_status(self):
         """Get current configuration status (not actual values for security)."""
         try:
-            # Get credentials status
-            hf_username, hf_token = self.credentials_manager.get_huggingface_credentials()
-            openai_key = self.credentials_manager.get_openai_key()
-            neo4j_creds = self.credentials_manager.get_neo4j_credentials()
+            # Get credentials status with extra logging for debugging
+            try:
+                hf_username, hf_token = self.credentials_manager.get_huggingface_credentials()
+                logger.info(f"HuggingFace token found: {bool(hf_token)}")
+            except Exception as e:
+                logger.error(f"Error retrieving HuggingFace credentials: {e}")
+                hf_username, hf_token = None, None
             
-            # Check for GitHub token in environment
+            try:
+                openai_key = self.credentials_manager.get_openai_key()
+                logger.info(f"OpenAI key found: {bool(openai_key)}")
+            except Exception as e:
+                logger.error(f"Error retrieving OpenAI key: {e}")
+                openai_key = None
+            
+            try:
+                neo4j_creds = self.credentials_manager.get_neo4j_credentials()
+                logger.info(f"Neo4j credentials found: {bool(neo4j_creds)}")
+            except Exception as e:
+                logger.error(f"Error retrieving Neo4j credentials: {e}")
+                neo4j_creds = None
+            
+            # Check for GitHub token in environment and .env file
             github_token = os.environ.get("GITHUB_TOKEN", "")
+            logger.info(f"GitHub token in environment: {bool(github_token)}")
+            
+            # Also check .env file directly as a fallback
+            if not github_token:
+                try:
+                    env_file = Path(".env")
+                    if env_file.exists():
+                        with open(env_file, "r") as f:
+                            content = f.read()
+                            match = re.search(r'^GITHUB_TOKEN=(.+)$', content, re.MULTILINE)
+                            if match and match.group(1):
+                                github_token = match.group(1)
+                                logger.info("GitHub token found in .env file")
+                except Exception as e:
+                    logger.error(f"Error checking .env file for GitHub token: {e}")
             
             # Check for missing required configurations
             missing_configs = []
