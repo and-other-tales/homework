@@ -8,7 +8,7 @@ import { Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChatMessages } from '@/components/chat/chat-messages';
 import { TaskProgressPopup } from '@/components/chat/task-progress-popup';
-import { WebSocketClient, ChatMessage, WebSocketEvent } from '@/lib/api/websocket';
+import { WebSocketClient, ChatMessage, WebSocketEvent } from './websocket';
 
 type Message = {
   id: string;

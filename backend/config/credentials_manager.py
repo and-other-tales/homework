@@ -5,14 +5,38 @@ from pathlib import Path
 from config.settings import CONFIG_DIR
 from utils.env_loader import load_environment_variables
 
-# Try to import keyring but provide fallback if not available
-try:
-    import keyring
-    HAS_KEYRING = True
-except ImportError:
-    HAS_KEYRING = False
-
+# Setup logger
 logger = logging.getLogger(__name__)
+
+# Global keyring status
+HAS_KEYRING = False
+KEYRING_CHECKED = False
+
+def check_keyring():
+    """Check if keyring is available and working."""
+    global HAS_KEYRING, KEYRING_CHECKED
+    
+    if KEYRING_CHECKED:
+        return HAS_KEYRING
+        
+    try:
+        import keyring
+        # Test that keyring actually works (not just importable)
+        try:
+            keyring.get_keyring()
+            HAS_KEYRING = True
+            logger.info("Keyring is available and will be used for storing credentials")
+        except Exception as e:
+            # Keyring module exists but no backend is available
+            # This happens in Docker/WSL environments often
+            logger.warning(f"Keyring module found but not usable: {e}")
+            logger.warning("Will store credentials in config file instead (less secure)")
+    except ImportError:
+        # Keyring module not installed
+        logger.warning("Keyring module not found, will store credentials in config file")
+    
+    KEYRING_CHECKED = True
+    return HAS_KEYRING
 
 
 class CredentialsManager:
@@ -37,6 +61,14 @@ class CredentialsManager:
         self.env_vars = load_environment_variables()
         # Extract usernames from tokens if available
         self._extract_usernames_from_env()
+        # Check keyring availability
+        self.has_keyring = check_keyring()
+        
+        if self.has_keyring:
+            import keyring
+            self.keyring = keyring
+        else:
+            self.keyring = None
 
     def _ensure_config_file_exists(self):
         """Ensure the configuration file exists with default values."""
@@ -70,33 +102,31 @@ class CredentialsManager:
         except Exception as e:
             logger.error(f"Error extracting usernames from env: {e}")
 
-
     def save_huggingface_credentials(self, username, token):
         """Save Hugging Face credentials."""
         try:
             config = self._load_config()
             config["huggingface_username"] = username
             
-            # Save token in config file if keyring not available
-            if not HAS_KEYRING:
-                config["huggingface_token"] = token
-                logger.warning("Keyring not available, storing token in config file (less secure)")
-                
-            self._save_config(config)
-            
             # Try to use keyring if available
-            if HAS_KEYRING:
+            if self.has_keyring:
                 try:
-                    keyring.set_password(self.SERVICE_NAME, self.HUGGINGFACE_KEY, token)
+                    self.keyring.set_password(self.SERVICE_NAME, self.HUGGINGFACE_KEY, token)
+                    logger.info("Saved Hugging Face token to keyring")
                 except Exception as e:
-                    logger.warning(f"Keyring failed, storing token in config file: {e}")
+                    logger.warning(f"Keyring save failed, storing in config file: {e}")
                     config["huggingface_token"] = token
-                    self._save_config(config)
+            else:
+                # Save in config file if keyring not available 
+                config["huggingface_token"] = token
+                logger.info("Saved Hugging Face token to config file")
                     
+            self._save_config(config)
             logger.info(f"Saved Hugging Face credentials for user {username}")
+            return True
         except Exception as e:
             logger.error(f"Failed to save Hugging Face credentials: {e}")
-
+            return False
 
     def get_huggingface_credentials(self):
         """Get Hugging Face credentials with environment variable fallback."""
@@ -105,21 +135,27 @@ class CredentialsManager:
         token = None
 
         # Try to get token from keyring if available
-        if HAS_KEYRING:
+        if self.has_keyring:
             try:
-                token = keyring.get_password(self.SERVICE_NAME, self.HUGGINGFACE_KEY)
+                token = self.keyring.get_password(self.SERVICE_NAME, self.HUGGINGFACE_KEY)
+                if token:
+                    logger.debug("Retrieved HuggingFace token from keyring")
             except Exception as e:
                 logger.warning(f"Error accessing keyring: {e}")
+                # Don't retry keyring operations for this session
+                global HAS_KEYRING
+                HAS_KEYRING = False
+                self.has_keyring = False
 
         # If not found in keyring, try config file
         if not token and "huggingface_token" in config:
             token = config.get("huggingface_token")
-            logger.info("Using HuggingFace token from config file")
+            logger.debug("Using HuggingFace token from config file")
 
         # If still not found, check environment variable
         if not token and self.env_vars.get("huggingface_token"):
             token = self.env_vars.get("huggingface_token")
-            logger.info("Using HuggingFace token from environment variables")
+            logger.debug("Using HuggingFace token from environment variables")
 
         return username, token
         
@@ -128,23 +164,20 @@ class CredentialsManager:
         try:
             config = self._load_config()
             
-            # Save key in config file if keyring not available
-            if not HAS_KEYRING:
-                config["openapi_key"] = key
-                logger.warning("Keyring not available, storing API key in config file (less secure)")
-                
-            self._save_config(config)
-            
             # Try to use keyring if available
-            if HAS_KEYRING:
+            if self.has_keyring:
                 try:
-                    keyring.set_password(self.SERVICE_NAME, self.OPENAPI_KEY, key)
+                    self.keyring.set_password(self.SERVICE_NAME, self.OPENAPI_KEY, key)
+                    logger.info("Saved OpenAPI key to keyring")
                 except Exception as e:
-                    logger.warning(f"Keyring failed, storing API key in config file: {e}")
+                    logger.warning(f"Keyring save failed, storing in config file: {e}")
                     config["openapi_key"] = key
-                    self._save_config(config)
+            else:
+                # Save in config file if keyring not available
+                config["openapi_key"] = key
+                logger.info("Saved OpenAPI key to config file")
                     
-            logger.info("Saved OpenAPI API key")
+            self._save_config(config)
             return True
         except Exception as e:
             logger.error(f"Failed to save OpenAPI API key: {e}")
@@ -156,21 +189,27 @@ class CredentialsManager:
         key = None
 
         # Try to get key from keyring if available
-        if HAS_KEYRING:
+        if self.has_keyring:
             try:
-                key = keyring.get_password(self.SERVICE_NAME, self.OPENAPI_KEY)
+                key = self.keyring.get_password(self.SERVICE_NAME, self.OPENAPI_KEY)
+                if key:
+                    logger.debug("Retrieved OpenAPI key from keyring")
             except Exception as e:
                 logger.warning(f"Error accessing keyring: {e}")
+                # Don't retry keyring operations for this session
+                global HAS_KEYRING
+                HAS_KEYRING = False
+                self.has_keyring = False
 
         # If not found in keyring, try config file
         if not key and "openapi_key" in config:
             key = config.get("openapi_key")
-            logger.info("Using OpenAPI key from config file")
+            logger.debug("Using OpenAPI key from config file")
 
         # If still not found, check environment variable
         if not key and self.env_vars.get("openapi_key"):
             key = self.env_vars.get("openapi_key")
-            logger.info("Using OpenAPI key from environment variables")
+            logger.debug("Using OpenAPI key from environment variables")
 
         return key
         
@@ -216,28 +255,26 @@ class CredentialsManager:
         try:
             config = self._load_config()
             
-            # Save credentials in config file if keyring not available
-            if not HAS_KEYRING:
-                config["neo4j_uri"] = uri
-                config["neo4j_username"] = username
-                config["neo4j_password"] = password
-                logger.warning("Keyring not available, storing Neo4j credentials in config file (less secure)")
-                
-            self._save_config(config)
-            
             # Try to use keyring if available
-            if HAS_KEYRING:
+            if self.has_keyring:
                 try:
-                    keyring.set_password(self.SERVICE_NAME, self.NEO4J_URI_KEY, uri)
-                    keyring.set_password(self.SERVICE_NAME, self.NEO4J_USER_KEY, username)
-                    keyring.set_password(self.SERVICE_NAME, self.NEO4J_PASSWORD_KEY, password)
+                    self.keyring.set_password(self.SERVICE_NAME, self.NEO4J_URI_KEY, uri)
+                    self.keyring.set_password(self.SERVICE_NAME, self.NEO4J_USER_KEY, username)
+                    self.keyring.set_password(self.SERVICE_NAME, self.NEO4J_PASSWORD_KEY, password)
+                    logger.info("Saved Neo4j credentials to keyring")
                 except Exception as e:
-                    logger.warning(f"Keyring failed, storing Neo4j credentials in config file: {e}")
+                    logger.warning(f"Keyring save failed, storing in config file: {e}")
                     config["neo4j_uri"] = uri
                     config["neo4j_username"] = username
                     config["neo4j_password"] = password
-                    self._save_config(config)
+            else:
+                # Save in config file if keyring not available
+                config["neo4j_uri"] = uri
+                config["neo4j_username"] = username
+                config["neo4j_password"] = password
+                logger.info("Saved Neo4j credentials to config file")
                     
+            self._save_config(config)
             logger.info(f"Saved Neo4j credentials for {username}@{uri}")
             return True
         except Exception as e:
@@ -252,20 +289,26 @@ class CredentialsManager:
         password = None
         
         # Try to get credentials from keyring if available
-        if HAS_KEYRING:
+        if self.has_keyring:
             try:
-                uri = keyring.get_password(self.SERVICE_NAME, self.NEO4J_URI_KEY)
-                username = keyring.get_password(self.SERVICE_NAME, self.NEO4J_USER_KEY)
-                password = keyring.get_password(self.SERVICE_NAME, self.NEO4J_PASSWORD_KEY)
+                uri = self.keyring.get_password(self.SERVICE_NAME, self.NEO4J_URI_KEY)
+                username = self.keyring.get_password(self.SERVICE_NAME, self.NEO4J_USER_KEY)
+                password = self.keyring.get_password(self.SERVICE_NAME, self.NEO4J_PASSWORD_KEY)
+                if uri and username and password:
+                    logger.debug("Retrieved Neo4j credentials from keyring")
             except Exception as e:
                 logger.warning(f"Error accessing keyring: {e}")
+                # Don't retry keyring operations for this session
+                global HAS_KEYRING
+                HAS_KEYRING = False
+                self.has_keyring = False
         
         # If not found in keyring, try config file
         if not uri and "neo4j_uri" in config:
             uri = config.get("neo4j_uri")
             username = config.get("neo4j_username")
             password = config.get("neo4j_password")
-            logger.info("Using Neo4j credentials from config file")
+            logger.debug("Using Neo4j credentials from config file")
         
         # If still not found, check environment variables (try both naming styles)
         if not uri:
@@ -273,7 +316,7 @@ class CredentialsManager:
             username = self.env_vars.get("neo4j_username") or self.env_vars.get("NEO4J_USER")
             password = self.env_vars.get("neo4j_password") or self.env_vars.get("NEO4J_PASSWORD")
             if uri and username and password:
-                logger.info("Using Neo4j credentials from environment variables")
+                logger.debug("Using Neo4j credentials from environment variables")
         
         if uri and username and password:
             return {
@@ -288,23 +331,20 @@ class CredentialsManager:
         try:
             config = self._load_config()
             
-            # Save key in config file if keyring not available
-            if not HAS_KEYRING:
-                config["openai_key"] = key
-                logger.warning("Keyring not available, storing API key in config file (less secure)")
-                
-            self._save_config(config)
-            
             # Try to use keyring if available
-            if HAS_KEYRING:
+            if self.has_keyring:
                 try:
-                    keyring.set_password(self.SERVICE_NAME, self.OPENAI_KEY, key)
+                    self.keyring.set_password(self.SERVICE_NAME, self.OPENAI_KEY, key)
+                    logger.info("Saved OpenAI key to keyring")
                 except Exception as e:
-                    logger.warning(f"Keyring failed, storing API key in config file: {e}")
+                    logger.warning(f"Keyring save failed, storing in config file: {e}")
                     config["openai_key"] = key
-                    self._save_config(config)
+            else:
+                # Save in config file if keyring not available
+                config["openai_key"] = key
+                logger.info("Saved OpenAI key to config file")
                     
-            logger.info("Saved OpenAI API key")
+            self._save_config(config)
             return True
         except Exception as e:
             logger.error(f"Failed to save OpenAI API key: {e}")
@@ -316,23 +356,29 @@ class CredentialsManager:
         key = None
         
         # Try to get key from keyring if available
-        if HAS_KEYRING:
+        if self.has_keyring:
             try:
-                key = keyring.get_password(self.SERVICE_NAME, self.OPENAI_KEY)
+                key = self.keyring.get_password(self.SERVICE_NAME, self.OPENAI_KEY)
+                if key:
+                    logger.debug("Retrieved OpenAI key from keyring")
             except Exception as e:
                 logger.warning(f"Error accessing keyring: {e}")
+                # Don't retry keyring operations for this session
+                global HAS_KEYRING
+                HAS_KEYRING = False
+                self.has_keyring = False
         
         # If not found in keyring, try config file
         if not key and "openai_key" in config:
             key = config.get("openai_key")
-            logger.info("Using OpenAI key from config file")
+            logger.debug("Using OpenAI key from config file")
         
         # If still not found, check environment variable (try both casing styles)
         if not key:
             # Try both lowercase and uppercase environment variable names
             key = self.env_vars.get("openai_api_key") or self.env_vars.get("OPENAI_API_KEY")
             if key:
-                logger.info("Using OpenAI key from environment variables")
+                logger.debug("Using OpenAI key from environment variables")
         
         return key
 
