@@ -26,6 +26,10 @@ class LLMClient:
             logger.warning("No OpenAI API key provided")
         else:
             logger.info("LLM client initialized with API key")
+            # Log a masked version of the key for debugging
+            if self.api_key:
+                masked_key = self.api_key[:4] + "..." + self.api_key[-4:] if len(self.api_key) > 8 else "***"
+                logger.debug(f"Using API key starting with {masked_key}")
 
     async def generate_response(self, user_message: str) -> str:
         """

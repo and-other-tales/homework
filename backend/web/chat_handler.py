@@ -2,6 +2,7 @@ import logging
 import json
 import uuid
 import asyncio
+import os
 from typing import Dict, List, Any, Optional
 from fastapi import WebSocket
 from datetime import datetime
@@ -36,11 +37,20 @@ class ChatHandler:
         if openai_key:
             try:
                 self.llm_client = LLMClient(api_key=openai_key)
-                logger.info("LLM client initialized")
+                logger.info("LLM client initialized with API key")
             except Exception as e:
                 logger.error(f"Failed to initialize LLM client: {e}")
         else:
-            logger.warning("OpenAI API key not found, LLM features will be limited")
+            # Check environment directly as a fallback
+            openai_key_env = os.environ.get("OPENAI_API_KEY")
+            if openai_key_env:
+                try:
+                    self.llm_client = LLMClient(api_key=openai_key_env)
+                    logger.info("LLM client initialized with API key from environment")
+                except Exception as e:
+                    logger.error(f"Failed to initialize LLM client with env var: {e}")
+            else:
+                logger.warning("OpenAI API key not found, LLM features will be limited")
         
         # Initialize GitHub client if credentials are available
         try:
@@ -122,7 +132,15 @@ class ChatHandler:
         # Try to initialize LLM client again if it's not available
         if not self.llm_client:
             try:
+                # Try to get from credential manager first
                 openai_key = self.credentials_manager.get_openai_key()
+                
+                # If not found, check environment directly
+                if not openai_key:
+                    openai_key = os.environ.get("OPENAI_API_KEY")
+                    if openai_key:
+                        logger.info("Using OpenAI API key from environment variables")
+                
                 if openai_key:
                     self.llm_client = LLMClient(api_key=openai_key)
                     logger.info("LLM client initialized on first message")

@@ -449,7 +449,7 @@ class CredentialsManager:
         # If still not found, check environment variable (try both casing styles)
         if not key:
             # Try both lowercase and uppercase environment variable names
-            key = self.env_vars.get("openai_api_key") or self.env_vars.get("OPENAI_API_KEY")
+            key = self.env_vars.get("openai_api_key") or self.env_vars.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
             if key:
                 logger.debug("Using OpenAI key from environment variables")
         
