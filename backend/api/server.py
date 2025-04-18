@@ -116,11 +116,9 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)  # Compress responses over
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])  # Can be restricted in production
 
 # Add CORS middleware for LLM tool compatibility
-origins = ["*"]  # In production, restrict to specific domains
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # In production, you should restrict this to specific domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
