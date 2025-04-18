@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, X, Check, Loader2 } from 'lucide-react';
-import { simpleApiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 
 interface ConfigItem {
@@ -88,6 +87,9 @@ export function SetupWizard() {
 
   // Check if required environment variables are missing
   useEffect(() => {
+    // Always set it to open for testing
+    setOpen(true);
+
     const checkEnvironment = async () => {
       try {
         // Check if we have saved state for the wizard
@@ -115,31 +117,44 @@ export function SetupWizard() {
           }
         }
         
-        // Try to get server status
-        const response = await simpleApiClient.getStatus();
-        
-        // If there are missing configs in the response, open the wizard
-        if (response.success && response.data?.missing_configs) {
-          const missingConfigs = response.data.missing_configs as string[];
+        try {
+          // Try to get server status
+          const response = await fetch('/api/status');
           
-          if (missingConfigs.length > 0) {
-            // Mark the items that are missing as required
-            setConfigItems(prev => 
-              prev.map(item => ({
-                ...item,
-                required: missingConfigs.includes(item.key) || item.required
-              }))
-            );
-            setOpen(true);
+          if (response.ok) {
+            const data = await response.json();
+            
+            // If there are missing configs in the response, open the wizard
+            if (data.success && data.data?.missing_configs) {
+              const missingConfigs = data.data.missing_configs as string[];
+              
+              if (missingConfigs.length > 0) {
+                // Mark the items that are missing as required
+                setConfigItems(prev => 
+                  prev.map(item => ({
+                    ...item,
+                    required: missingConfigs.includes(item.key) || item.required
+                  }))
+                );
+                // Wizard already opened for testing
+                // setOpen(true);
+              }
+            }
+          } else {
+            // If we can't connect to the server, we should show the setup wizard
+            // Wizard already opened for testing
+            // setOpen(true);
           }
-        } else if (!response.success) {
-          // If we can't connect to the server, we should show the setup wizard
-          setOpen(true);
+        } catch (e) {
+          console.error('Failed to fetch status:', e);
+          // Wizard already opened for testing
+          // setOpen(true);
         }
       } catch (error) {
         console.error('Failed to check environment:', error);
         // If we can't connect at all, show the setup wizard
-        setOpen(true);
+        // Wizard already opened for testing
+        // setOpen(true);
       }
     };
 
