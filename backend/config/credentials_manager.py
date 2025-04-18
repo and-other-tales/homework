@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import logging
 from pathlib import Path
 from config.settings import CONFIG_DIR
@@ -21,16 +22,39 @@ def check_keyring():
         
     try:
         import keyring
+        # Check for and install keyrings.alt as fallback if needed
+        try:
+            import keyrings.alt
+            logger.info("keyrings.alt is available as a fallback")
+        except ImportError:
+            try:
+                import pip
+                logger.info("Installing keyrings.alt as a fallback keyring backend")
+                import subprocess
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "keyrings.alt"])
+                import keyrings.alt
+            except Exception as e:
+                logger.warning(f"Could not install keyrings.alt: {e}")
+                
         # Test that keyring actually works (not just importable)
         try:
             keyring.get_keyring()
             HAS_KEYRING = True
             logger.info("Keyring is available and will be used for storing credentials")
         except Exception as e:
-            # Keyring module exists but no backend is available
-            # This happens in Docker/WSL environments often
-            logger.warning(f"Keyring module found but not usable: {e}")
-            logger.warning("Will store credentials in config file instead (less secure)")
+            # Try to set a fallback keyring
+            try:
+                from keyrings.alt import file
+                keyring.set_keyring(file.PlaintextKeyring())
+                # Verify the fallback works
+                keyring.get_keyring()
+                HAS_KEYRING = True
+                logger.info("Using PlaintextKeyring as fallback for storing credentials")
+            except Exception as fallback_error:
+                # Both main and fallback keyring failed
+                logger.warning(f"Keyring module found but not usable: {e}")
+                logger.warning(f"Fallback keyring also failed: {fallback_error}")
+                logger.warning("Will store credentials in config file instead (less secure)")
     except ImportError:
         # Keyring module not installed
         logger.warning("Keyring module not found, will store credentials in config file")
