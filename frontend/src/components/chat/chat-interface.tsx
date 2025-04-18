@@ -40,11 +40,31 @@ export function ChatInterface() {
   }, []);
   
   useEffect(() => {
-    // Create WebSocket client
+    // Try to load configured WebSocket URL from localStorage
+    let savedChatConfig;
+    try {
+      const savedConfig = localStorage.getItem('homework_config_state');
+      if (savedConfig) {
+        savedChatConfig = JSON.parse(savedConfig);
+      }
+    } catch (e) {
+      console.error("Error loading saved config:", e);
+    }
+    
+    // Create WebSocket client with the configured URL or fallback to default
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Use the correct port 8080 for WebSocket, since the backend is running there
-    const socketUrl = `${protocol}//${window.location.hostname}:8080/ws`;
-    console.log(`Attempting to connect to WebSocket at ${socketUrl}`);
+    let socketUrl;
+    
+    if (savedChatConfig?.chat_backend_url) {
+      // Use configured WebSocket URL from settings
+      socketUrl = savedChatConfig.chat_backend_url;
+      console.log(`Using configured WebSocket URL: ${socketUrl}`);
+    } else {
+      // Fallback to default WebSocket URL
+      socketUrl = `${protocol}//${window.location.hostname}:8080/ws`;
+      console.log(`Using default WebSocket URL: ${socketUrl}`);
+    }
+    
     wsClientRef.current = new WebSocketClient(socketUrl);
     
     // Register event listeners

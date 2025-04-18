@@ -32,12 +32,22 @@ export const fetchTaskList = async (): Promise<ApiResponse<{ tasks: TaskStatus[]
       };
     }
     
-    const data = await response.json();
-    return {
-      success: true,
-      message: "Success",
-      data,
-    };
+    // Parse the response
+    const responseData = await response.json();
+    
+    // Check if the response contains tasks data
+    if (responseData.data && responseData.data.tasks) {
+      return {
+        success: true,
+        message: responseData.message || "Tasks loaded successfully",
+        data: responseData.data,
+      };
+    } else {
+      return {
+        success: false,
+        message: "No task data received from server",
+      };
+    }
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return {

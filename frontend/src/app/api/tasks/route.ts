@@ -58,9 +58,10 @@ export async function GET(request: NextRequest) {
       }
     ];
     
+    // Provide mock data with the correct structure
     return NextResponse.json({
       success: true,
-      message: "Mock task data retrieved successfully",
+      message: "Loaded mock task data for development",
       data: { tasks: mockTasks }
     });
     

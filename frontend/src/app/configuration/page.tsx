@@ -19,6 +19,8 @@ interface ConfigurationState {
   neo4j_password: string;
   server_port: string;
   temp_dir: string;
+  chat_backend_url: string;
+  chat_model: string;
 }
 
 export default function ConfigurationPage() {
@@ -33,7 +35,9 @@ export default function ConfigurationPage() {
     neo4j_username: 'neo4j',
     neo4j_password: '',
     server_port: '8080',
-    temp_dir: '/home/user/.othertales_homework/temp'
+    temp_dir: '/home/user/.othertales_homework/temp',
+    chat_backend_url: 'ws://localhost:8080/ws',
+    chat_model: 'gpt-3.5-turbo'
   });
 
   // Load configuration status and saved form state on mount
@@ -205,6 +209,24 @@ export default function ConfigurationPage() {
         configToSave.neo4j_uri = config.neo4j_uri;
         configToSave.neo4j_username = config.neo4j_username;
         configToSave.neo4j_password = config.neo4j_password;
+      }
+      
+      // Save chat configuration
+      if (config.chat_backend_url) {
+        configToSave.chat_backend_url = config.chat_backend_url;
+      }
+      
+      if (config.chat_model) {
+        configToSave.chat_model = config.chat_model;
+      }
+      
+      // Save server settings
+      if (config.server_port) {
+        configToSave.server_port = config.server_port;
+      }
+      
+      if (config.temp_dir) {
+        configToSave.temp_dir = config.temp_dir;
       }
       
       // Save configuration
@@ -642,6 +664,48 @@ export default function ConfigurationPage() {
                 />
                 <p className="text-sm text-muted-foreground">
                   Directory for temporary files and cache storage
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Chat Configuration</CardTitle>
+            <CardDescription>
+              Configure chat WebSocket endpoint and model settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="chat_backend_url">Chat WebSocket URL</Label>
+                <Input
+                  id="chat_backend_url"
+                  name="chat_backend_url"
+                  type="text"
+                  placeholder="ws://localhost:8080/ws"
+                  value={config.chat_backend_url}
+                  onChange={handleInputChange}
+                />
+                <p className="text-sm text-muted-foreground">
+                  WebSocket endpoint for chat communication. Default: ws://localhost:8080/ws
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="chat_model">Chat Model</Label>
+                <Input
+                  id="chat_model"
+                  name="chat_model"
+                  type="text"
+                  placeholder="gpt-3.5-turbo"
+                  value={config.chat_model}
+                  onChange={handleInputChange}
+                />
+                <p className="text-sm text-muted-foreground">
+                  The OpenAI model to use for chat responses. Default: gpt-3.5-turbo
                 </p>
               </div>
             </div>
