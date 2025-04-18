@@ -78,3 +78,12 @@ jest.mock('@radix-ui/react-collection', () => {
     CollectionItemSlot: ({ children }) => children
   };
 });
+
+// Mock @babel/runtime helper
+global.__interopRequireDefault = obj => {
+  return obj && obj.__esModule ? obj : { default: obj };
+};
+
+if (!global.React) {
+  global.React = require('react');
+}
