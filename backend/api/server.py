@@ -982,7 +982,7 @@ async def crawl_website(
 
 @app.post("/tasks", response_model=ApiResponse, summary="Manage Tasks")
 async def manage_tasks(
-    request: dict, api_key: str = Depends(verify_api_key)
+    request: dict
 ):
     """
     Get task status, list tasks, or cancel tasks.
