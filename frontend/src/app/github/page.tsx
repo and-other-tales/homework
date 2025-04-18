@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, GitFork, GitBranch, Star, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiClient } from '@/lib/api/client';
+// Use the simple API client temporarily until we resolve the import issue
+import { simpleApiClient as apiClient } from '@/lib/api-client';
 
 interface Repository {
   id: number;
