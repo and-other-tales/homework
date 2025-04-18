@@ -1,8 +1,8 @@
 // Import testing library extensions
 import '@testing-library/jest-dom';
 
-// Import mock implementations directly
-const nextRouterMock = {
+// Mock Next.js router - define mocks inline in the factory function
+jest.mock('next/router', () => ({
   useRouter: jest.fn().mockReturnValue({
     route: '/',
     pathname: '',
@@ -16,9 +16,10 @@ const nextRouterMock = {
     beforePopState: jest.fn(() => null),
     prefetch: jest.fn(() => null)
   })
-};
+}));
 
-const nextNavigationMock = {
+// Mock Next.js navigation - define mocks inline in the factory function
+jest.mock('next/navigation', () => ({
   usePathname: jest.fn().mockReturnValue('/'),
   useRouter: jest.fn().mockReturnValue({
     push: jest.fn(),
@@ -28,11 +29,7 @@ const nextNavigationMock = {
   }),
   useSearchParams: jest.fn().mockReturnValue(new URLSearchParams()),
   useParams: jest.fn().mockReturnValue({})
-};
-
-// Set up mocks
-jest.mock('next/router', () => nextRouterMock);
-jest.mock('next/navigation', () => nextNavigationMock);
+}));
 
 // Mock browser APIs that might be missing in the test environment
 if (typeof window !== 'undefined') {
