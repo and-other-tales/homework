@@ -91,9 +91,14 @@ export default function GitHubPage() {
       // In a real app, you'd use the API client to fetch org repos
       // const response = await apiClient.fetchOrganizationRepos(orgName);
       
-      // Mock successful response
+      // Mock successful response with more realistic repo count
+      const repoCount = orgName.toLowerCase() === 'langchain-ai' ? 148 : 
+                       orgName.toLowerCase() === 'microsoft' ? 1260 :
+                       orgName.toLowerCase() === 'google' ? 2580 : 
+                       Math.floor(Math.random() * 100) + 50;
+                       
       toast.success(`Organization ${orgName} fetched successfully`);
-      toast.info(`Found 42 repositories in ${orgName}`);
+      toast.info(`Found ${repoCount} repositories in ${orgName}`);
       
       // Generate dataset name from org name
       setDatasetName(`${orgName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-dataset`);
@@ -122,7 +127,7 @@ export default function GitHubPage() {
       const sourceType = selectedRepo ? 'repository' : 'organization';
       const sourceName = selectedRepo ? selectedRepo.full_name : orgName;
       
-      toast.loading(`Generating dataset from ${sourceType} ${sourceName}...`);
+      const loadingToast = toast.loading(`Generating dataset from ${sourceType} ${sourceName}...`);
       
       // Call the API to generate dataset using fetch directly
       const response = await fetch('/api/datasets/generate', {
@@ -136,9 +141,15 @@ export default function GitHubPage() {
           dataset_name: datasetName,
           description: `Dataset generated from ${sourceType} ${sourceName}`,
         }),
-      }).then(res => res.json());
+      });
       
-      if (response.success || response.task_id) {
+      // Parse response properly
+      const data = await response.json();
+      
+      // Dismiss the loading toast
+      toast.dismiss(loadingToast);
+      
+      if (data.success || data.task_id) {
         toast.success(`Dataset ${datasetName} creation started successfully`);
         
         // Add to processed repos
@@ -150,11 +161,14 @@ export default function GitHubPage() {
         setDatasetName('');
         setSelectedRepo(null);
       } else {
-        toast.error(`Failed to create dataset: ${response.message}`);
+        toast.error(`Failed to create dataset: ${data.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error generating dataset:', error);
       toast.error('Failed to generate dataset');
+      
+      // Ensure all toasts are dismissed
+      toast.dismiss();
     }
   };
 

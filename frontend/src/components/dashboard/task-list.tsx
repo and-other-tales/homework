@@ -68,6 +68,12 @@ export function DashboardTaskList() {
     }
 
     loadTasks();
+    
+    // Set up a polling interval to refresh tasks every 15 seconds
+    const interval = setInterval(loadTasks, 15000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(interval);
   }, []);
 
   const handleViewTask = (taskId: string) => {

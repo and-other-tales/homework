@@ -160,7 +160,16 @@ export function SimpleChat() {
   };
 
   const handleClearChat = () => {
-    setMessages([]);
+    // Keep only the welcome message
+    setMessages([{
+      id: 'welcome',
+      type: 'system',
+      content: 'Welcome to the homework AI Assistant. How can I help you today?',
+      timestamp: new Date().toISOString()
+    }]);
+    
+    // Show toast confirmation
+    toast.success('Chat history cleared');
   };
 
   return (

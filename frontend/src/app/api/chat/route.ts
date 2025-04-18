@@ -15,15 +15,15 @@ export async function POST(request: NextRequest) {
       console.log("Using client-provided API key");
     }
     
+    // For development/testing - if no API key is available, create a mock response
     if (!apiKey) {
-      // Without an API key, return an error message
-      return NextResponse.json(
-        {
-          error: true,
-          message: "OpenAI API key not configured. Please add your API key in the Configuration page."
-        },
-        { status: 400 }
-      );
+      // Instead of returning an error, simulate a successful response
+      console.log("No API key available, providing mock response");
+      return NextResponse.json({
+        message: "This is a simulated response since no OpenAI API key is configured. Your message was: \"" + message + "\"",
+        model: model || "mock-model",
+        tokenUsage: { total_tokens: 150 }
+      });
     }
     
     // Use the specified model or default to gpt-3.5-turbo

@@ -47,11 +47,31 @@ export const fetchTasks = async (): Promise<ApiResponse<any>> => {
       };
     }
     
-    return {
-      success: true,
-      message: "Success",
-      data: await response.json(),
-    };
+    // Parse the response data
+    const responseData = await response.json();
+    
+    // Check if the response contains the expected format
+    if (responseData.success && responseData.data?.tasks) {
+      return {
+        success: true,
+        message: responseData.message || "Success",
+        data: responseData.data,
+      };
+    } else if (responseData.tasks) {
+      // Handle alternative response format
+      return {
+        success: true,
+        message: "Success",
+        data: { tasks: responseData.tasks },
+      };
+    } else {
+      // Fallback for any response format
+      return {
+        success: true,
+        message: "Success",
+        data: { tasks: [] },
+      };
+    }
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return {

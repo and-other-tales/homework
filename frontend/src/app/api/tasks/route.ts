@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: `Task '${body.task_id}' cancelled successfully (mock response)`,
-        data: null
+        data: { task: { id: body.task_id, status: "cancelled" } }
       });
     }
     
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Mock task action completed successfully",
-      data: { task: { id: body.task_id, status: "mock_status" } }
+      data: { task: { id: body.task_id || "new_task_" + Date.now(), status: "running" } }
     });
     
   } catch (error) {

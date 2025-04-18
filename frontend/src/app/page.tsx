@@ -1,25 +1,31 @@
 'use client';
 
 import PageLayout from "@/components/layout/page-layout";
-import { NewTaskModal } from "@/components/dashboard/new-task-modal";
+import { NewTaskModal, NewTaskModalHandle } from "@/components/dashboard/new-task-modal";
 import { DashboardCards } from "@/components/dashboard/dashboard-cards";
 import { DashboardTaskList } from "@/components/dashboard/task-list";
 import { AgentInboxDashboard } from "@/components/dashboard/agent-inbox-dashboard";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // Metadata needs to be in a separate layout file for client components
 
 export default function DashboardPage() {
+  const modalRef = useRef<NewTaskModalHandle>(null);
+
   return (
     <PageLayout 
       title="Dashboard" 
       showNewTaskButton={true}
       onNewTask={() => {
-        // Open new task modal
-        const modalElement = document.getElementById('new-task-modal');
-        if (modalElement) {
-          const modal = new (window as any).bootstrap.Modal(modalElement);
-          modal.show();
+        // Open the modal using the ref
+        if (modalRef.current) {
+          modalRef.current.open();
+        } else {
+          // Fallback - try to click the trigger directly
+          const modalTrigger = document.getElementById('new-task-trigger');
+          if (modalTrigger) {
+            modalTrigger.click();
+          }
         }
       }}
     >
@@ -28,7 +34,7 @@ export default function DashboardPage() {
         <DashboardTaskList />
         <AgentInboxDashboard />
       </div>
-      <NewTaskModal />
+      <NewTaskModal ref={modalRef} />
     </PageLayout>
   );
 }

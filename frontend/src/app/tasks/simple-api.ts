@@ -42,10 +42,17 @@ export const fetchTaskList = async (): Promise<ApiResponse<{ tasks: TaskStatus[]
         message: responseData.message || "Tasks loaded successfully",
         data: responseData.data,
       };
+    } else if (responseData.success) {
+      // Server says success but no tasks data format, let's fix it
+      return {
+        success: true,
+        message: responseData.message || "Tasks loaded successfully",
+        data: { tasks: responseData.tasks || [] },
+      };
     } else {
       return {
         success: false,
-        message: "No task data received from server",
+        message: responseData.message || "No task data received from server",
       };
     }
   } catch (error) {

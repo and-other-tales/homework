@@ -489,15 +489,6 @@ export default function ConfigurationPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                {configStatus.neo4j_configured && (
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2"
-                    onClick={() => setConfigStatus(prev => ({...prev, neo4j_configured: false}))}
-                  >
-                    Edit Configuration
-                  </Button>
-                )}
                 <Button 
                   variant="outline" 
                   className="flex items-center gap-2"
@@ -547,8 +538,7 @@ export default function ConfigurationPage() {
                   placeholder="bolt://localhost:7687"
                   value={config.neo4j_uri}
                   onChange={handleInputChange}
-                  readOnly={configStatus.neo4j_configured}
-                  className={configStatus.neo4j_configured ? "border-green-300 bg-gray-50" : ""}
+                  className={configStatus.neo4j_configured ? "border-green-300" : ""}
                 />
                 {configStatus.neo4j_configured && (
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -579,8 +569,7 @@ export default function ConfigurationPage() {
                   placeholder="neo4j"
                   value={config.neo4j_username}
                   onChange={handleInputChange}
-                  readOnly={configStatus.neo4j_configured}
-                  className={configStatus.neo4j_configured ? "border-green-300 bg-gray-50" : ""}
+                  className={configStatus.neo4j_configured ? "border-green-300" : ""}
                 />
               </div>
             </div>
@@ -604,11 +593,10 @@ export default function ConfigurationPage() {
                   id="neo4j_password"
                   name="neo4j_password"
                   type="password"
-                  placeholder={configStatus.neo4j_configured ? "••••••••••••••••" : "password"}
+                  placeholder="Enter password"
                   value={config.neo4j_password}
                   onChange={handleInputChange}
-                  readOnly={configStatus.neo4j_configured}
-                  className={configStatus.neo4j_configured ? "border-green-300 bg-gray-50" : ""}
+                  className={configStatus.neo4j_configured ? "border-green-300" : ""}
                 />
                 {configStatus.neo4j_configured && (
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">

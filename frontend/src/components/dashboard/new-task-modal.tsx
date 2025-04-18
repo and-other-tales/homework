@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, forwardRef, useImperativeHandle } from 'react';
 import { 
   Dialog,
   DialogContent,
@@ -19,9 +19,21 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 // No API client import needed as we use fetch directly
 
-export function NewTaskModal() {
+// Export a handle type
+export type NewTaskModalHandle = {
+  open: () => void;
+  close: () => void;
+};
+
+export const NewTaskModal = forwardRef<NewTaskModalHandle>((props, ref) => {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('github');
+  
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    open: () => setOpen(true),
+    close: () => setOpen(false)
+  }));
   
   // GitHub form state
   const [githubRepo, setGithubRepo] = useState('');
