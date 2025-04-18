@@ -45,12 +45,12 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     },
     {
       name: 'Datasets',
-      href: '/datasets',
+      href: '/huggingface',
       icon: Database,
     },
     {
       name: 'Knowledge Graphs',
-      href: '/knowledge-graphs',
+      href: '/knowledge_graphs',
       icon: Network,
     },
     {

@@ -10,6 +10,7 @@ import {
   Network 
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { apiClient } from '../../lib/api/client';
 
 type StatusData = {
   server_status: boolean;
@@ -34,6 +35,7 @@ export function DashboardCards() {
   useEffect(() => {
     async function fetchStatusData() {
       try {
+        // Use our API client
         const response = await fetch('/api/status');
         if (response.ok) {
           const data = await response.json();
@@ -48,6 +50,15 @@ export function DashboardCards() {
         }
       } catch (error) {
         console.error('Error fetching status data:', error);
+        // Set loading to false even if there's an error
+        setStatusData({
+          server_status: false,
+          github_status: false,
+          huggingface_status: false,
+          neo4j_status: false,
+          dataset_count: 0,
+          cache_size: '0 MB',
+        });
       } finally {
         setLoading(false);
       }
@@ -137,7 +148,7 @@ export function DashboardCards() {
                 <div className="text-xs text-muted-foreground">Manage active and completed tasks</div>
               </div>
             </a>
-            <a href="/datasets" className="flex items-center rounded-md bg-muted p-2 hover:bg-muted/80">
+            <a href="/huggingface" className="flex items-center rounded-md bg-muted p-2 hover:bg-muted/80">
               <div className="mr-2 rounded-md bg-yellow-500 p-1">
                 <Database className="h-3 w-3 text-white" />
               </div>
