@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { simpleApiClient } from '../../lib/api-client';
+// No API client import needed as we use fetch directly
 
 export function NewTaskModal() {
   const [open, setOpen] = useState(false);

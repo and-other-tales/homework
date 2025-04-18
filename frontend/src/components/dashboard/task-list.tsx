@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 // Import formatDate directly from date-fns to avoid path issues
 import { format, formatDistanceToNow } from 'date-fns';
-import { simpleApiClient } from '../../lib/api-client';
+import { fetchTasks, cancelTask } from './simple-api';
 
 // Define local formatDate function
 function formatDate(date: string | Date, format = "PPp") {
@@ -54,9 +54,9 @@ export function DashboardTaskList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchTasks() {
+    async function loadTasks() {
       try {
-        const response = await simpleApiClient.manageTasks({ action: 'list' });
+        const response = await fetchTasks();
         if (response.success) {
           setTasks(response.data?.tasks || []);
         }
@@ -67,7 +67,7 @@ export function DashboardTaskList() {
       }
     }
 
-    fetchTasks();
+    loadTasks();
   }, []);
 
   const handleViewTask = (taskId: string) => {
@@ -77,10 +77,7 @@ export function DashboardTaskList() {
 
   const handleCancelTask = async (taskId: string) => {
     try {
-      const response = await simpleApiClient.manageTasks({
-        action: 'cancel',
-        task_id: taskId
-      });
+      const response = await cancelTask(taskId);
       
       if (response.success) {
         // Update the task list

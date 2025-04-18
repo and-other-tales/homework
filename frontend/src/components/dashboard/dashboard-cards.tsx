@@ -10,7 +10,7 @@ import {
   Network 
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { simpleApiClient } from '../../lib/api-client';
+import { fetchStatus } from './simple-api';
 
 type StatusData = {
   server_status: boolean;
@@ -33,10 +33,10 @@ export function DashboardCards() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchStatusData() {
+    async function getStatusData() {
       try {
-        // Use our API client for status info
-        const response = await simpleApiClient.getStatus();
+        // Use our local fetch function
+        const response = await fetchStatus();
         if (response.success) {
           const data = response.data || {};
           setStatusData({
@@ -64,7 +64,7 @@ export function DashboardCards() {
       }
     }
 
-    fetchStatusData();
+    getStatusData();
   }, []);
 
   return (
