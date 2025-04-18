@@ -3,7 +3,10 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get update -y || (sleep 2 && apt-get update -y) && \
+    apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
