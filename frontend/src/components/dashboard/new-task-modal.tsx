@@ -25,7 +25,7 @@ export type NewTaskModalHandle = {
   close: () => void;
 };
 
-export const NewTaskModal = forwardRef<NewTaskModalHandle>((props, ref) => {
+export const NewTaskModal = forwardRef<NewTaskModalHandle, {}>((props, ref) => {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('github');
   

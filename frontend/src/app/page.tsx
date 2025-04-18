@@ -5,7 +5,7 @@ import { NewTaskModal, NewTaskModalHandle } from "@/components/dashboard/new-tas
 import { DashboardCards } from "@/components/dashboard/dashboard-cards";
 import { DashboardTaskList } from "@/components/dashboard/task-list";
 import { AgentInboxDashboard } from "@/components/dashboard/agent-inbox-dashboard";
-import { useState, useRef, useEffect } from "react";
+import { useRef } from "react";
 
 // Metadata needs to be in a separate layout file for client components
 
