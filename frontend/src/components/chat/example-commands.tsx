@@ -1,7 +1,10 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
+// Define cn utility function locally
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
 
 type ExampleCommandProps = {
   command: string;

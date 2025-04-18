@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { XCircle, Minimize2, Maximize2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+// Define cn utility function locally
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
 
 type TaskUpdate = {
   task_id: string;

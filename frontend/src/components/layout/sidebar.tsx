@@ -1,7 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
+// Define cn utility function locally
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
 import {
   LayoutDashboard,
   GitBranch,

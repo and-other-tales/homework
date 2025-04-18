@@ -235,6 +235,7 @@ start_local_mode() {
   print_message "green" "✅ Backend started on http://localhost:8080"
   print_message "green" "✅ Frontend started on http://localhost:3000"
   print_message "yellow" "⚠️ Note: Frontend will connect to backend via API"
+  print_message "yellow" "⚠️ You may see module resolution errors in the frontend - these are being fixed inline"
   
   print_message "green" "✅ Homework application is now running!"
   print_message "green" "📊 Dashboard: http://localhost:3000"

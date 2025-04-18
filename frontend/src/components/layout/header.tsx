@@ -1,5 +1,8 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
+// Define cn utility function locally
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Menu } from 'lucide-react';
 

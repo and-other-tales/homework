@@ -3,7 +3,10 @@
 import React, { useState } from 'react';
 import Sidebar from '@/components/layout/sidebar';
 import Header from '@/components/layout/header';
-import { cn } from '@/lib/utils';
+// Define cn utility function locally
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
 
 type PageLayoutProps = {
   children: React.ReactNode;
