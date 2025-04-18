@@ -42,7 +42,9 @@ export function ChatInterface() {
   useEffect(() => {
     // Create WebSocket client
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socketUrl = `${protocol}//${window.location.host}/ws`;
+    // Use the correct port 8080 for WebSocket, since the backend is running there
+    const socketUrl = `${protocol}//${window.location.hostname}:8080/ws`;
+    console.log(`Attempting to connect to WebSocket at ${socketUrl}`);
     wsClientRef.current = new WebSocketClient(socketUrl);
     
     // Register event listeners
@@ -128,8 +130,37 @@ export function ChatInterface() {
       console.error('Failed to connect to WebSocket:', error);
       setConnected(false);
       setConnecting(false);
-      setConnectionError('Failed to connect to chat server. Please check your configuration settings.');
+      
+      // Create helpful error message with troubleshooting steps
+      const errorMessage = `
+        Failed to connect to chat server. Please ensure:
+        
+        1. The backend server is running on port 8080
+        2. Your OpenAI API key is configured correctly
+        3. There are no network issues blocking WebSocket connections
+        
+        You can check the configuration in the Configuration page.
+      `;
+      
+      setConnectionError(errorMessage);
       toast.error('Failed to connect to chat server');
+      
+      // Try alternative connection methods if primary fails
+      setTimeout(() => {
+        // Try a different WebSocket URL as fallback
+        try {
+          console.log("Trying fallback WebSocket connection...");
+          const fallbackUrl = `${protocol}//localhost:8080/ws`;
+          wsClientRef.current = new WebSocketClient(fallbackUrl);
+          
+          // Attempt to connect with the fallback
+          wsClientRef.current.connect().catch(fallbackError => {
+            console.error('Fallback WebSocket connection also failed:', fallbackError);
+          });
+        } catch (fallbackError) {
+          console.error('Error setting up fallback connection:', fallbackError);
+        }
+      }, 2000);
     });
     
     // Cleanup on unmount

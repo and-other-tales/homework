@@ -165,11 +165,14 @@ export class WebSocketClient {
 
         // Connection error
         this.socket.addEventListener('error', (error) => {
+          // Log error for debugging
+          console.error('WebSocket connection error:', error);
+          
           // Emit error event
           this.emitEvent({
             type: 'error',
             data: { 
-              message: 'WebSocket connection error',
+              message: `WebSocket connection error: Please ensure the backend server is running on port 8080`,
               timestamp: new Date().toISOString()
             }
           });

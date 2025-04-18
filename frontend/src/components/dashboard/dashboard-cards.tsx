@@ -35,6 +35,7 @@ export function DashboardCards() {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentTime, setCurrentTime] = useState<string | null>(null);
 
   // Function to fetch status data
   const getStatusData = async (showToast = false) => {
@@ -104,6 +105,16 @@ export function DashboardCards() {
   // Initial status fetch on component mount
   useEffect(() => {
     getStatusData();
+    
+    // Set current time after component mount to avoid hydration error
+    setCurrentTime(new Date().toLocaleTimeString());
+    
+    // Update current time every minute
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    }, 60000);
+    
+    return () => clearInterval(timer);
   }, []);
 
   return (
@@ -145,10 +156,12 @@ export function DashboardCards() {
             </div>
             
             <div className="pt-2 text-xs text-muted-foreground">
-              <p className="flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>
-                Last updated: {new Date().toLocaleTimeString()}
-              </p>
+              {currentTime && (
+                <p className="flex items-center">
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>
+                  Last updated: {currentTime}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
