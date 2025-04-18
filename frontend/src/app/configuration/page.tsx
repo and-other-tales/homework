@@ -159,9 +159,12 @@ export default function ConfigurationPage() {
     }));
 
     const persistConfig = { ...config, [name]: value };
-    if (name.includes('password') || name.includes('token') || name.includes('key')) {
-      persistConfig[name] = '';
-    }
+    // Explicitly remove sensitive fields
+    persistConfig.huggingface_token = '';
+    persistConfig.github_token = '';
+    persistConfig.openai_api_key = '';
+    persistConfig.neo4j_password = '';
+
     localStorage.setItem('homework_config_state', JSON.stringify(persistConfig));
   };
 
@@ -379,7 +382,7 @@ export default function ConfigurationPage() {
                   id="openai_api_key"
                   name="openai_api_key"
                   type="password"
-                  placeholder={configStatus.openai_configured ? "••••••••••••••••" : "sk-..."}
+                  placeholder={configStatus.openai_configured ? "••••••••••••••••" : "sk_..."}
                   value={config.openai_api_key}
                   onChange={handleInputChange}
                   className={configStatus.openai_configured ? "border-green-300 pr-10" : ""}
@@ -628,7 +631,7 @@ export default function ConfigurationPage() {
         <div className="flex justify-end">
           <Button 
             onClick={handleSaveConfiguration}
-            disabled={loading}
+            disabled={loading || deployingNeo4j}
             className="flex items-center gap-2"
           >
             {loading ? (
@@ -642,4 +645,5 @@ export default function ConfigurationPage() {
       </div>
     </PageLayout>
   );
-}
+
+}}

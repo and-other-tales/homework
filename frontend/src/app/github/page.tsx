@@ -54,10 +54,10 @@ export default function GitHubPage() {
       // Fetch repository data from the backend API
       const response = await fetch(`/api/github/repository?repo=${repoName}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch repository information');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch repository information');
       }
       const repoData = await response.json();
-      
       setSelectedRepo(repoData);
       toast.success(`Repository ${repoData.name} fetched successfully`);
       
@@ -65,7 +65,7 @@ export default function GitHubPage() {
       setDatasetName(`${repoData.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-dataset`);
     } catch (error) {
       console.error('Error fetching repository:', error);
-      toast.error('Failed to fetch repository information');
+      toast.error(error.message || 'Failed to fetch repository information');
     } finally {
       setLoadingRepo(false);
     }

@@ -40,6 +40,19 @@ export function ChatInterface() {
   }, []);
   
   useEffect(() => {
+    try {
+      const savedConfig = localStorage.getItem('homework_config_state');
+      if (savedConfig) {
+        const parsedConfig = JSON.parse(savedConfig);
+        // Use parsedConfig safely here
+      }
+    } catch (e) {
+      console.error("Error parsing localStorage config:", e);
+      localStorage.removeItem('homework_config_state');
+    }
+  }, []);
+  
+  useEffect(() => {
     // Try to load configured WebSocket URL from localStorage
     let savedChatConfig;
     try {
@@ -147,43 +160,22 @@ export function ChatInterface() {
     
     // Connect
     wsClientRef.current.connect().catch(error => {
-      console.error('Failed to connect to WebSocket:', error);
+      console.error('WebSocket connection failed:', error);
       setConnected(false);
       setConnecting(false);
-      
-      // Create helpful error message with troubleshooting steps
-      const errorMessage = `
-        Failed to connect to chat server. Please ensure:
-        
-        1. The backend server is running on port 8080
-        2. Your OpenAI API key is configured correctly
-        3. There are no network issues blocking WebSocket connections
-        
-        You can check the configuration in the Configuration page.
-      `;
-      
-      setConnectionError(errorMessage);
-      toast.error('Failed to connect to chat server');
-      
-      // Try alternative connection methods if primary fails
-      setTimeout(() => {
-        // Try a different WebSocket URL as fallback
-        try {
-          console.log("Trying fallback WebSocket connection...");
-          const fallbackUrl = `${protocol}//localhost:8080/ws`;
-          wsClientRef.current = new WebSocketClient(fallbackUrl);
-          
-          // Attempt to connect with the fallback
-          wsClientRef.current.connect().catch(fallbackError => {
-            console.error('Fallback WebSocket connection also failed:', fallbackError);
-          });
-        } catch (fallbackError) {
-          console.error('Error setting up fallback connection:', fallbackError);
-        }
-      }, 2000);
+      setConnectionError('Unable to connect to the chat server. Please verify your backend is running and accessible.');
+      toast.error('Unable to connect to chat server. Check backend status.');
     });
     
     // Cleanup on unmount
+    return () => {
+      if (wsClientRef.current) {
+        wsClientRef.current.disconnect();
+      }
+    };
+  }, []);
+  
+  useEffect(() => {
     return () => {
       if (wsClientRef.current) {
         wsClientRef.current.disconnect();
@@ -318,7 +310,6 @@ export function ChatInterface() {
       {activeTask && (
         <TaskProgressPopup
           task={activeTask}
-          onCancel={handleCancelTask}
         />
       )}
     </>

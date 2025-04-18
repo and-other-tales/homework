@@ -93,8 +93,9 @@ export function SimpleChat() {
   }, [currentTaskId, taskInProgress]);
 
   const checkTaskStatus = async (taskId: string) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
     try {
-      const response = await fetch(`/api/tasks/status?id=${taskId}`);
+      const response = await fetch(`${apiUrl}/api/tasks/status?id=${taskId}`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data?.task) {
@@ -209,8 +210,9 @@ export function SimpleChat() {
         console.error("Error loading saved config:", e);
       }
       
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
       // Send message to API with agent mode flag
-      const response = await fetch('/api/chat', {
+      const response = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -396,8 +398,9 @@ export function SimpleChat() {
         console.error("Error loading saved config:", e);
       }
       
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
       // Send task to API
-      const response = await fetch('/api/agent-task', {
+      const response = await fetch(`${apiUrl}/api/agent-task`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
