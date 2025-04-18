@@ -70,50 +70,8 @@ export function AgentInboxDashboard() {
   const fetchTasks = async () => {
     try {
       // In a real app, this would fetch from your API
-      // Mock data for demonstration
-      const mockTasks: HumanInLoopTask[] = [
-        {
-          id: 'task_123',
-          action_request: {
-            action: 'Approve Email',
-            args: {
-              subject: 'Meeting Tomorrow',
-              body: 'Hi team, just a reminder that we have a meeting tomorrow at 10am to discuss the project progress.',
-              recipient: 'team@example.com'
-            }
-          },
-          description: 'Please review this email before sending it to the team.',
-          config: {
-            allow_ignore: true,
-            allow_respond: true,
-            allow_edit: true,
-            allow_accept: true
-          },
-          status: 'waiting',
-          created_at: new Date(Date.now() - 3600000).toISOString()
-        },
-        {
-          id: 'task_456',
-          action_request: {
-            action: 'Verify Data',
-            args: {
-              filename: 'quarterly_report.csv',
-              rows: 245,
-              columns: 15,
-              suspicious_entries: 3
-            }
-          },
-          description: 'The system detected some suspicious entries in the quarterly report data. Please verify if they need correction.',
-          config: {
-            allow_ignore: true,
-            allow_respond: true,
-            allow_edit: false,
-            allow_accept: true
-          },
-          status: 'waiting',
-          created_at: new Date(Date.now() - 7200000).toISOString()
-        }
-      ];
+      // For now, we'll just show an empty state
+      const mockTasks: HumanInLoopTask[] = [];
       
       setTasks(mockTasks);
       setLoading(false);

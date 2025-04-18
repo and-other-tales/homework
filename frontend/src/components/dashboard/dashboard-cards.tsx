@@ -35,10 +35,10 @@ export function DashboardCards() {
   useEffect(() => {
     async function fetchStatusData() {
       try {
-        // Use our API client
-        const response = await fetch('/api/status');
-        if (response.ok) {
-          const data = await response.json();
+        // Use our API client for status info
+        const response = await apiClient.getStatus();
+        if (response.success) {
+          const data = response.data || {};
           setStatusData({
             server_status: data.status === 'running',
             github_status: data.github_status || false,
