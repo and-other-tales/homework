@@ -51,6 +51,8 @@ export async function GET(request: NextRequest) {
                          (health.components?.openai_api && health.components?.openai_api?.status !== 'down'),
           dataset_count: 0, // This would need to come from another API call
           cache_size: '0 MB', // This would need to come from another API call
+          active_tasks: health.data?.active_tasks || 0,
+          total_tasks: health.data?.total_tasks || 0
         };
       }
     } catch (error) {
@@ -81,7 +83,9 @@ export async function GET(request: NextRequest) {
         neo4j_status: false,
         openai_status: true, // Assuming OpenAI is connected based on the logs
         dataset_count: 0,
-        cache_size: '0 MB'
+        cache_size: '0 MB',
+        active_tasks: 0,
+        total_tasks: 0
       },
       { status: 200 }
     );

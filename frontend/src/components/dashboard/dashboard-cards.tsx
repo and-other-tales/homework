@@ -22,6 +22,8 @@ type StatusData = {
   neo4j_status: boolean;
   dataset_count: number;
   cache_size: string;
+  active_tasks: number;
+  total_tasks: number;
 };
 
 export function DashboardCards() {
@@ -32,6 +34,8 @@ export function DashboardCards() {
     neo4j_status: false,
     dataset_count: 0,
     cache_size: '0 MB',
+    active_tasks: 0,
+    total_tasks: 0
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,6 +63,8 @@ export function DashboardCards() {
           neo4j_status: true, // Neo4j is properly configured based on logs
           dataset_count: data.dataset_count || 0,
           cache_size: data.cache_size || '0 MB',
+          active_tasks: data.active_tasks || 0,
+          total_tasks: data.total_tasks || 0
         });
         
         if (showToast) {
@@ -74,6 +80,8 @@ export function DashboardCards() {
           neo4j_status: true,
           dataset_count: 0,
           cache_size: '0 MB',
+          active_tasks: 0,
+          total_tasks: 0
         });
         
         if (showToast) {
@@ -90,6 +98,8 @@ export function DashboardCards() {
         neo4j_status: true,
         dataset_count: 0,
         cache_size: '0 MB',
+        active_tasks: 0,
+        total_tasks: 0
       });
       
       if (showToast) {
@@ -182,7 +192,7 @@ export function DashboardCards() {
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col items-center">
-              <span className="text-2xl font-bold">5</span>
+              <span className="text-2xl font-bold">{statusData.active_tasks}</span>
               <span className="text-xs text-muted-foreground">Active Tasks</span>
             </div>
             <div className="flex flex-col items-center">
@@ -190,8 +200,8 @@ export function DashboardCards() {
               <span className="text-xs text-muted-foreground">Datasets</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-2xl font-bold">8080</span>
-              <span className="text-xs text-muted-foreground">API Port</span>
+              <span className="text-2xl font-bold">{statusData.total_tasks || 0}</span>
+              <span className="text-xs text-muted-foreground">Total Tasks</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="text-2xl font-bold">{statusData.cache_size}</span>

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, Save, Database } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Configuration interface
 interface ConfigurationState {
@@ -19,14 +20,27 @@ interface ConfigurationState {
   neo4j_password: string;
   server_port: string;
   temp_dir: string;
-  chat_backend_url: string;
   chat_model: string;
+  [key: string]: string; // Add index signature to allow string indexing
+}
+
+// Configuration status interface
+interface ConfigurationStatus {
+  huggingface_configured: boolean;
+  github_configured: boolean;
+  openai_configured: boolean;
+  neo4j_configured: boolean;
 }
 
 export default function ConfigurationPage() {
   const [loading, setLoading] = useState(false);
   const [deployingNeo4j, setDeployingNeo4j] = useState(false);
-  const [configStatus, setConfigStatus] = useState<Record<string, boolean>>({});
+  const [configStatus, setConfigStatus] = useState<ConfigurationStatus>({
+    huggingface_configured: false,
+    github_configured: false,
+    openai_configured: false,
+    neo4j_configured: false,
+  });
   const [config, setConfig] = useState<ConfigurationState>({
     huggingface_token: '',
     github_token: '',
@@ -36,11 +50,9 @@ export default function ConfigurationPage() {
     neo4j_password: '',
     server_port: '8080',
     temp_dir: '/home/user/.othertales_homework/temp',
-    chat_backend_url: 'ws://localhost:8080/ws',
-    chat_model: 'gpt-3.5-turbo'
+    chat_model: 'gpt-3.5-turbo',
   });
 
-  // Load configuration status and saved form state on mount
   useEffect(() => {
     loadConfigurationStatus();
     loadSavedFormState();
@@ -50,201 +62,133 @@ export default function ConfigurationPage() {
     try {
       setLoading(true);
       const response = await fetch('/api/configuration');
-      
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data) {
-          // Set status for UI display
-          console.log("Configuration status:", data.data);
-          
-          // The server logs show all credentials are configured, so use that info
-          const status = {
+          const status: ConfigurationStatus = {
             huggingface_configured: true,
             github_configured: true,
             openai_configured: true,
-            neo4j_configured: true // Set to true based on logs showing Neo4j is configured
+            neo4j_configured: true,
           };
-          
           setConfigStatus(status);
-          
-          // Store config status in localStorage for other components to use
           localStorage.setItem('config_status', JSON.stringify(status));
-          
-          // Mark setup as completed
           localStorage.setItem('setup_completed', 'true');
         }
       } else {
-        // If the server doesn't respond correctly, we still want to show
-        // the UI with checkmarks if tokens are in env vars
-        const status = {
+        const status: ConfigurationStatus = {
           huggingface_configured: true,
           github_configured: true,
           openai_configured: true,
-          neo4j_configured: true // Set to true based on logs showing Neo4j is configured
+          neo4j_configured: true,
         };
-        
         setConfigStatus(status);
-        
-        // Store config status in localStorage for other components to use
         localStorage.setItem('config_status', JSON.stringify(status));
-        
         localStorage.setItem('setup_completed', 'true');
         console.warn('Using fallback configuration status due to API error');
       }
     } catch (error) {
       console.error('Error loading configuration status:', error);
-      
-      // If there's an error, use fallback status that matches the logs
-      const status = {
+      const status: ConfigurationStatus = {
         huggingface_configured: true,
         github_configured: true,
         openai_configured: true,
-        neo4j_configured: true // Set to true based on logs showing Neo4j is configured
+        neo4j_configured: true,
       };
-      
       setConfigStatus(status);
-      
-      // Store config status in localStorage for other components to use
       localStorage.setItem('config_status', JSON.stringify(status));
-      
       localStorage.setItem('setup_completed', 'true');
     } finally {
       setLoading(false);
     }
   };
-  
+
   const loadSavedFormState = () => {
     try {
       const savedState = localStorage.getItem('homework_config_state');
       if (savedState) {
         const parsedState = JSON.parse(savedState);
-        
-        // We don't want to overwrite the default values with empty strings
-        // Only update if there's a non-empty value or the field isn't sensitive
-        const newConfig = {...config};
-        
-        Object.keys(parsedState).forEach(key => {
-          // For non-sensitive fields, always use saved value
+        const newConfig = { ...config };
+        Object.keys(parsedState).forEach((key) => {
           if (!key.includes('password') && !key.includes('token') && !key.includes('key')) {
             newConfig[key] = parsedState[key];
-          } 
-          // For sensitive fields, only use saved value if it's not empty
-          else if (parsedState[key]) {
+          } else if (parsedState[key]) {
             newConfig[key] = parsedState[key];
           }
         });
-        
         setConfig(newConfig);
       }
-      
-      // Try to get Neo4j configuration from server if local storage doesn't have it
-      // This is to ensure Neo4j fields are populated even if they were saved but not in localStorage
       const getNeo4jInfo = async () => {
         try {
           const response = await fetch('/api/configuration');
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.data && data.data.neo4j_configured) {
-              console.log("Neo4j is configured according to server, retrieving connection info");
-              
-              // Retrieve Neo4j info from API
               try {
                 const response = await fetch('/api/get-neo4j-info');
                 if (response.ok) {
                   const neo4jData = await response.json();
                   if (neo4jData.success && neo4jData.data) {
-                    setConfig(prev => ({
+                    setConfig((prev) => ({
                       ...prev,
                       neo4j_uri: neo4jData.data.uri || prev.neo4j_uri,
                       neo4j_username: neo4jData.data.username || prev.neo4j_username,
-                      // We don't populate the password field for security
                     }));
                   }
                 }
               } catch (error) {
-                // Silent error, we'll just use the default values
-                console.warn("Could not retrieve Neo4j connection info:", error);
+                console.warn('Could not retrieve Neo4j connection info:', error);
               }
             }
           }
         } catch (error) {
-          // Silent error, we'll just use the default values
-          console.warn("Could not check Neo4j configuration status:", error);
+          console.warn('Could not check Neo4j configuration status:', error);
         }
       };
-      
       getNeo4jInfo();
     } catch (error) {
       console.error('Error loading saved form state:', error);
-      // Don't show toast for this error as it's not critical
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const newConfig = {
-      ...config,
-      [name]: value
-    };
-    setConfig(newConfig);
-    
-    // Save to localStorage (excluding sensitive values)
-    const persistConfig = {...newConfig};
-    
-    // Don't save passwords/tokens to localStorage for security
+    setConfig((prevConfig) => ({
+      ...prevConfig,
+      [name]: value,
+    }));
+
+    const persistConfig = { ...config, [name]: value };
     if (name.includes('password') || name.includes('token') || name.includes('key')) {
-      persistConfig[name] = ''; // Clear sensitive value
+      persistConfig[name] = '';
     }
-    
     localStorage.setItem('homework_config_state', JSON.stringify(persistConfig));
+  };
+
+  const handleSelectChange = (value: string, name: string) => {
+    setConfig((prevConfig) => ({
+      ...prevConfig,
+      [name]: value,
+    }));
   };
 
   const handleSaveConfiguration = async () => {
     try {
       setLoading(true);
       const loadingToast = toast.loading('Saving configuration...');
-      
-      // Filter out empty values except for required fields
       const configToSave: Record<string, string> = {};
-      
-      if (config.huggingface_token) {
-        configToSave.huggingface_token = config.huggingface_token;
-      }
-      
-      if (config.github_token) {
-        configToSave.github_token = config.github_token;
-      }
-      
-      if (config.openai_api_key) {
-        configToSave.openai_api_key = config.openai_api_key;
-      }
-      
-      // Only save Neo4j configuration if all fields are filled
+      if (config.huggingface_token) configToSave.huggingface_token = config.huggingface_token;
+      if (config.github_token) configToSave.github_token = config.github_token;
+      if (config.openai_api_key) configToSave.openai_api_key = config.openai_api_key;
       if (config.neo4j_uri && config.neo4j_username && config.neo4j_password) {
         configToSave.neo4j_uri = config.neo4j_uri;
         configToSave.neo4j_username = config.neo4j_username;
         configToSave.neo4j_password = config.neo4j_password;
       }
-      
-      // Save chat configuration
-      if (config.chat_backend_url) {
-        configToSave.chat_backend_url = config.chat_backend_url;
-      }
-      
-      if (config.chat_model) {
-        configToSave.chat_model = config.chat_model;
-      }
-      
-      // Save server settings
-      if (config.server_port) {
-        configToSave.server_port = config.server_port;
-      }
-      
-      if (config.temp_dir) {
-        configToSave.temp_dir = config.temp_dir;
-      }
-      
-      // Save configuration
+      if (config.chat_model) configToSave.chat_model = config.chat_model;
+      if (config.server_port) configToSave.server_port = config.server_port;
+      if (config.temp_dir) configToSave.temp_dir = config.temp_dir;
+
       const response = await fetch('/api/configuration', {
         method: 'POST',
         headers: {
@@ -252,51 +196,35 @@ export default function ConfigurationPage() {
         },
         body: JSON.stringify(configToSave),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        
         toast.dismiss(loadingToast);
         toast.success('Configuration saved successfully');
-        
-        // Mark setup as completed
         localStorage.setItem('setup_completed', 'true');
-        
-        // Create a sanitized config for localStorage that keeps non-sensitive values
         const sanitizedConfig = {
           ...config,
           huggingface_token: '',
           github_token: '',
           openai_api_key: '',
-          neo4j_password: ''
+          neo4j_password: '',
         };
-        
-        // Update localStorage with non-sensitive values
         localStorage.setItem('homework_config_state', JSON.stringify(sanitizedConfig));
-        
-        // Clear sensitive fields in the form
         setConfig({
           ...config,
           huggingface_token: '',
           github_token: '',
           openai_api_key: '',
-          neo4j_password: ''
+          neo4j_password: '',
         });
-        
-        // Reload configuration status to update UI
         await loadConfigurationStatus();
-        
-        // If we have any updated items from the response, let the user know
         if (data.data?.items) {
           const updatedItems = data.data.items;
-          let updatedMessage = 'Updated: ';
           const itemNames = [];
-          
           if (updatedItems.huggingface) itemNames.push('Hugging Face');
           if (updatedItems.github) itemNames.push('GitHub');
           if (updatedItems.openai) itemNames.push('OpenAI');
           if (updatedItems.neo4j) itemNames.push('Neo4j');
-          
           if (itemNames.length > 0) {
             toast.success(`Updated: ${itemNames.join(', ')}`);
           }
@@ -316,30 +244,22 @@ export default function ConfigurationPage() {
 
   const handleDeployNeo4j = async () => {
     setDeployingNeo4j(true);
-    
     try {
       toast.loading('Deploying Neo4j Docker container...');
-      
-      // Call the API to deploy Neo4j
       const response = await fetch('/api/deploy-neo4j', {
         method: 'POST',
       });
-      
       if (!response.ok) {
         throw new Error('Failed to deploy Neo4j container');
       }
-      
       const data = await response.json();
-      
       if (data.success) {
         toast.success('Neo4j deployed successfully!');
-        
-        // Update the Neo4j configuration fields with the values from the response
         setConfig({
           ...config,
           neo4j_uri: data.data.uri || 'bolt://localhost:7687',
           neo4j_username: data.data.username || 'neo4j',
-          neo4j_password: data.data.password || ''
+          neo4j_password: data.data.password || '',
         });
       } else {
         throw new Error(data.message || 'Unknown error deploying Neo4j');
@@ -677,38 +597,28 @@ export default function ConfigurationPage() {
           <CardHeader>
             <CardTitle>Chat Configuration</CardTitle>
             <CardDescription>
-              Configure chat WebSocket endpoint and model settings.
+              Configure chat model settings.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="chat_backend_url">Chat WebSocket URL</Label>
-                <Input
-                  id="chat_backend_url"
-                  name="chat_backend_url"
-                  type="text"
-                  placeholder="ws://localhost:8080/ws"
-                  value={config.chat_backend_url}
-                  onChange={handleInputChange}
-                />
-                <p className="text-sm text-muted-foreground">
-                  WebSocket endpoint for chat communication. Default: ws://localhost:8080/ws
-                </p>
-              </div>
-              
-              <div className="space-y-2">
                 <Label htmlFor="chat_model">Chat Model</Label>
-                <Input
-                  id="chat_model"
-                  name="chat_model"
-                  type="text"
-                  placeholder="gpt-3.5-turbo"
+                <Select
                   value={config.chat_model}
-                  onChange={handleInputChange}
-                />
+                  onValueChange={(value) => handleSelectChange(value, 'chat_model')}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a chat model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                    <SelectItem value="gpt-4">GPT-4</SelectItem>
+                    <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-sm text-muted-foreground">
-                  The OpenAI model to use for chat responses. Default: gpt-3.5-turbo
+                  The OpenAI model to use for chat. GPT-4 provides better reasoning but costs more.
                 </p>
               </div>
             </div>

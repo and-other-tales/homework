@@ -32,27 +32,6 @@ export const config = {
     timeout: 30000, // 30 seconds
   },
   
-  // WebSocket configuration
-  websocket: {
-    /**
-     * Base URL for WebSocket connections
-     * Derive from API URL, replacing http with ws or https with wss
-     */
-    get baseUrl() {
-      return config.api.baseUrl.replace(/^http/, 'ws');
-    },
-    
-    /**
-     * Reconnect interval in milliseconds
-     */
-    reconnectInterval: 2000,
-    
-    /**
-     * Maximum number of reconnect attempts
-     */
-    maxReconnectAttempts: 5,
-  },
-  
   // Feature flags
   features: {
     /**
@@ -98,16 +77,6 @@ export function getApiUrl(path: string = ''): string {
   const baseUrl = config.api.baseUrl.endsWith('/') 
     ? config.api.baseUrl.slice(0, -1) 
     : config.api.baseUrl;
-    
-  const formattedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${baseUrl}${formattedPath}`;
-}
-
-// Helper function to get WebSocket URL
-export function getWebSocketUrl(path: string = ''): string {
-  const baseUrl = config.websocket.baseUrl.endsWith('/') 
-    ? config.websocket.baseUrl.slice(0, -1) 
-    : config.websocket.baseUrl;
     
   const formattedPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${formattedPath}`;

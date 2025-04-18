@@ -1,0 +1,19 @@
+{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:integration": "jest --testMatch='**/tests/integration/**/*.test.(ts|tsx|js|jsx)'",
+    "test:frontend": "jest --testMatch='**/tests/frontend/**/*.test.(ts|tsx|js|jsx)'",
+    "test:backend": "jest --testMatch='**/tests/backend/**/*.test.(ts|tsx|js|jsx)'"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.4.3",
+    "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.5.0",
+    "identity-obj-proxy": "^3.0.0",
+    "babel-jest": "^29.5.0"
+  }
+}

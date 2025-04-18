@@ -261,6 +261,7 @@ async def status():
     """
     # Check for missing required configurations
     from config.credentials_manager import CredentialsManager
+    from utils.task_tracker import TaskTracker
     credentials_manager = CredentialsManager()
     
     missing_configs = []
@@ -270,6 +271,11 @@ async def status():
     if not hf_token:
         missing_configs.append("huggingface_token")
     
+    # Get task statistics
+    task_tracker = TaskTracker()
+    all_tasks = task_tracker.list_resumable_tasks()
+    active_tasks = len([task for task in all_tasks if task.get('status') not in ['completed', 'failed', 'cancelled']])
+    
     return {
         "success": True,
         "message": "API server is running",
@@ -278,7 +284,9 @@ async def status():
             "host": server_status.host,
             "port": server_status.port,
             "version": app.version,
-            "missing_configs": missing_configs
+            "missing_configs": missing_configs,
+            "active_tasks": active_tasks,
+            "total_tasks": len(all_tasks)
         }
     }
 
@@ -913,47 +921,112 @@ def get_server_info():
         "openapi_url": f"{protocol}://{host}:{port}/openapi.json" if server_status.running else None
     }
 
-# Chat WebSocket connection manager and handler
-chat_handler = None
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for chat interface"""
-    global chat_handler
-    
-    # Initialize chat handler if needed
-    if chat_handler is None:
-        from config.credentials_manager import CredentialsManager
-        from web.chat_handler import ChatHandler
-        credentials_manager = CredentialsManager()
-        chat_handler = ChatHandler(credentials_manager)
-    
-    # Generate a unique client ID
-    client_id = str(uuid.uuid4())
+@app.post("/api/chat", response_model=ApiResponse, summary="Chat with AI")
+async def chat_with_ai(request: dict):
+    """Chat with AI using OpenAI-compatible API."""
+    from utils.llm_client import LLMClient
     
     try:
-        # Accept connection
-        await chat_handler.connect(websocket, client_id)
+        message = request.get("message", "")
+        model = request.get("model", "gpt-3.5-turbo")
+        api_key = request.get("apiKey")
+        agent_mode = request.get("agentMode", False)
         
-        # Process messages
-        while True:
-            message = await websocket.receive_text()
-            await chat_handler.process_message(message, websocket)
-    except WebSocketDisconnect:
-        # Handle client disconnect
-        await chat_handler.disconnect(client_id)
-        logger.info(f"Client #{client_id} disconnected")
+        if not message:
+            return {"success": False, "message": "No message provided"}
+        
+        # Initialize LLM client with API key if provided
+        if api_key and api_key != "USE_SERVER_KEY":
+            llm_client = LLMClient(api_key=api_key)
+        else:
+            # Use the server's configured API key
+            from config.credentials_manager import CredentialsManager
+            credentials_manager = CredentialsManager()
+            openai_key = credentials_manager.get_openai_key()
+            
+            if not openai_key:
+                return {"success": False, "message": "OpenAI API key not configured. Please set up your API key in the Configuration page."}
+                
+            llm_client = LLMClient(api_key=openai_key)
+        
+        # If agent mode is enabled, handle differently
+        if agent_mode:
+            # Handle agent workflow
+            response = await llm_client.generate_agent_response(message)
+        else:
+            # Regular chat response
+            response = await llm_client.generate_response(message, model=model)
+        
+        # Get token usage if available
+        token_usage = llm_client.get_last_token_usage()
+        
+        return {
+            "success": True,
+            "message": response,
+            "tokenUsage": token_usage
+        }
+        
     except Exception as e:
-        # Handle errors
-        logger.error(f"WebSocket error: {e}", exc_info=True)
-        try:
-            await websocket.close(code=1011, reason=f"Error: {str(e)}")
-        except:
-            pass
-        
-        # Clean up connection
-        await chat_handler.disconnect(client_id)
+        logger.error(f"Error in chat endpoint: {str(e)}", exc_info=True)
+        return {"success": False, "message": f"Error: {str(e)}"}
 
+@app.post("/api/agent-task", response_model=ApiResponse, summary="Create Agent Task")
+async def create_agent_task(request: dict):
+    """Create a new agent task."""
+    from utils.task_tracker import TaskTracker
+    
+    try:
+        task_type = request.get("task_type")
+        message = request.get("message")
+        options = request.get("options", {})
+        api_key = request.get("apiKey")
+        
+        if not task_type or not message:
+            return {"success": False, "message": "Task type and message are required"}
+        
+        # Use the TaskTracker to create and manage the task
+        task_tracker = TaskTracker()
+        
+        # Create a new task
+        task_id = await task_tracker.create_task(
+            task_type=task_type,
+            description=message,
+            options=options,
+            api_key=api_key if api_key != "USE_SERVER_KEY" else None
+        )
+        
+        return {
+            "success": True,
+            "message": f"Task '{task_type}' created successfully",
+            "taskId": task_id,
+            "taskDescription": message
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating agent task: {str(e)}", exc_info=True)
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+@app.get("/api/tasks/{task_id}", response_model=ApiResponse, summary="Get Task Status")
+async def get_task_status(task_id: str):
+    """Get the status of a specific task."""
+    from utils.task_tracker import TaskTracker
+    
+    try:
+        task_tracker = TaskTracker()
+        task = task_tracker.get_task(task_id)
+        
+        if not task:
+            return {"success": False, "message": f"Task {task_id} not found"}
+        
+        return {
+            "success": True,
+            "message": "Task status retrieved",
+            "task": task
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting task status: {str(e)}", exc_info=True)
+        return {"success": False, "message": f"Error: {str(e)}"}
 
 @app.post("/crawl", response_model=ApiResponse, summary="Crawl Website")
 async def crawl_website(
