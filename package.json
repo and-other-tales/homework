@@ -1,11 +1,11 @@
 {
   "scripts": {
-    "test": "node ./node_modules/jest/bin/jest.js",
-    "test:watch": "node ./node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "node ./node_modules/jest/bin/jest.js --coverage",
-    "test:integration": "node ./node_modules/jest/bin/jest.js --testMatch='**/tests/integration/**/*.test.(ts|tsx|js|jsx)'",
-    "test:frontend": "node ./node_modules/jest/bin/jest.js --testMatch='**/tests/frontend/**/*.test.(ts|tsx|js|jsx)'",
-    "test:backend": "node ./node_modules/jest/bin/jest.js --testMatch='**/tests/backend/**/*.test.(ts|tsx|js|jsx)'"
+    "test": "node run-tests.js",
+    "test:watch": "node run-tests.js --watch",
+    "test:coverage": "node run-tests.js --coverage",
+    "test:integration": "node run-tests.js --testMatch='**/tests/integration/**/*.test.(ts|tsx|js|jsx)'",
+    "test:frontend": "node run-tests.js --testMatch='**/tests/frontend/**/*.test.(ts|tsx|js|jsx)'",
+    "test:backend": "node run-tests.js --testMatch='**/tests/backend/**/*.test.(ts|tsx|js|jsx)'"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^5.16.5",

@@ -60,9 +60,24 @@ if (typeof window !== 'undefined') {
       dispatchEvent: jest.fn(),
     })),
   });
+  
+  // Mock window.scrollTo
+  window.scrollTo = jest.fn();
+  
+  // Mock window.fetch if needed
+  window.fetch = jest.fn().mockImplementation(() => 
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({}),
+      text: () => Promise.resolve(""),
+      blob: () => Promise.resolve(new Blob()),
+    })
+  );
 }
 
-// Set up any global mocks or test environment customizations here
+// Set current date for consistent testing
+jest.useFakeTimers();
+jest.setSystemTime(new Date('2023-06-01T12:00:00Z'));
 
 // Reset all mocks after each test
 afterEach(() => {
