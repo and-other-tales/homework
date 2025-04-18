@@ -12,8 +12,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, X, Check } from 'lucide-react';
+import { AlertCircle, X, Check, Loader2 } from 'lucide-react';
 import { simpleApiClient } from '@/lib/api-client';
+import { toast } from 'sonner';
 
 interface ConfigItem {
   key: string;
@@ -28,6 +29,7 @@ interface ConfigItem {
 export function SetupWizard() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [deployingNeo4j, setDeployingNeo4j] = useState(false);
   const [step, setStep] = useState(0);
   const [configItems, setConfigItems] = useState<ConfigItem[]>([
     {
@@ -123,6 +125,60 @@ export function SetupWizard() {
     const updatedItems = [...configItems];
     updatedItems[index].value = value;
     setConfigItems(updatedItems);
+  };
+
+  const handleDeployNeo4j = async () => {
+    setDeployingNeo4j(true);
+    
+    try {
+      toast.loading('Deploying Neo4j Docker container...');
+      
+      // Call the API to deploy Neo4j
+      const response = await fetch('/api/deploy-neo4j', {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to deploy Neo4j container');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('Neo4j deployed successfully!');
+        
+        // Update the Neo4j configuration fields with the values from the response
+        const updatedItems = [...configItems];
+        
+        // Find and update the Neo4j URI field
+        const uriIndex = updatedItems.findIndex(item => item.key === 'neo4j_uri');
+        if (uriIndex !== -1) {
+          updatedItems[uriIndex].value = data.data.uri || 'bolt://localhost:7687';
+        }
+        
+        // Find and update the Neo4j username field
+        const usernameIndex = updatedItems.findIndex(item => item.key === 'neo4j_username');
+        if (usernameIndex !== -1) {
+          updatedItems[usernameIndex].value = data.data.username || 'neo4j';
+        }
+        
+        // Find and update the Neo4j password field
+        const passwordIndex = updatedItems.findIndex(item => item.key === 'neo4j_password');
+        if (passwordIndex !== -1) {
+          updatedItems[passwordIndex].value = data.data.password || 'password';
+        }
+        
+        setConfigItems(updatedItems);
+      } else {
+        throw new Error(data.message || 'Unknown error deploying Neo4j');
+      }
+    } catch (error) {
+      console.error('Error deploying Neo4j:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to deploy Neo4j');
+    } finally {
+      setDeployingNeo4j(false);
+      toast.dismiss();
+    }
   };
 
   const handleSkip = () => {
@@ -230,6 +286,28 @@ export function SetupWizard() {
               </div>
             </div>
 
+            {currentItem.key.startsWith('neo4j_') && (
+              <div className="mb-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full flex items-center justify-center gap-2 mb-2"
+                  onClick={handleDeployNeo4j}
+                  disabled={loading}
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19.9 4.5H4.1C2.94 4.5 2 5.44 2 6.6V15.4C2 16.56 2.94 17.5 4.1 17.5H8.5V19.5H15.5V17.5H19.9C21.06 17.5 22 16.56 22 15.4V6.6C22 5.44 21.06 4.5 19.9 4.5Z" 
+                      fill="currentColor" opacity="0.4" />
+                    <path d="M12 8.5L7 12L12 15.5L17 12L12 8.5Z" fill="currentColor" />
+                  </svg>
+                  Deploy Neo4j Docker
+                </Button>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Don't have Neo4j? Click to automatically deploy Neo4j v5.3 in Docker
+                </p>
+              </div>
+            )}
             <Input
               id={currentItem.key}
               type={currentItem.type || 'text'}
