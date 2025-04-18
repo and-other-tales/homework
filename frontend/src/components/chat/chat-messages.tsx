@@ -5,10 +5,31 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import { formatDate } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
+// Import formatDate directly from date-fns to avoid path issues
+import { format, formatDistanceToNow } from 'date-fns';
+// Define utility functions locally
+function formatDate(date: string | Date, formatStr = "PPp") {
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  
+  // If it's less than a day ago, show relative time
+  const now = new Date();
+  const diffMs = now.getTime() - dateObj.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  
+  if (diffHours < 24) {
+    return formatDistanceToNow(dateObj, { addSuffix: true });
+  }
+  
+  // Otherwise show formatted date
+  return format(dateObj, formatStr);
+}
+
+// Define cn utility function locally
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
 
 type Message = {
   id: string;
