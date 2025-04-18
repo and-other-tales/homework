@@ -13,82 +13,36 @@ const httpsAgent = new https.Agent({
 export async function GET(request: NextRequest) {
   try {
     // Forward the request to the backend
-    try {
-      // Determine if we need to handle HTTPS with self-signed certs
-      const fetchOptions: RequestInit = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action: 'list' }),
-      };
-      
-      // Add HTTPS agent if needed (for self-signed certificates)
-      if (API_URL.startsWith('https://')) {
-        // @ts-ignore - The agent property is not in the TypeScript types
-        fetchOptions.agent = httpsAgent;
-      }
-      
-      const response = await fetch(`${API_URL}/tasks`, fetchOptions);
+    const fetchOptions: RequestInit = {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
 
-      if (response.ok) {
-        const data = await response.json();
-        return NextResponse.json(data);
-      }
-      
-      // If backend request fails, fall back to mock data
-      console.warn("Backend request failed, using mock task data");
-    } catch (error) {
-      console.warn("Error connecting to backend, using mock task data:", error);
+    // Add HTTPS agent if needed (for self-signed certificates)
+    if (API_URL.startsWith('https://')) {
+      // @ts-ignore - The agent property is not in the TypeScript types
+      fetchOptions.agent = httpsAgent;
     }
-    
-    // Generate mock task data for development and testing
-    const mockTasks = [
-      {
-        id: "task_" + Math.floor(Math.random() * 1000),
-        type: "dataset_creation",
-        status: "completed",
-        progress: 100,
-        message: "Dataset created successfully",
-        created_at: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-        updated_at: new Date(Date.now() - 3500000).toISOString(),
-        result: { dataset_name: "sample-dataset" }
-      },
-      {
-        id: "task_" + Math.floor(Math.random() * 1000),
-        type: "github_fetch",
-        status: "running",
-        progress: 45,
-        message: "Fetching repository files",
-        created_at: new Date(Date.now() - 600000).toISOString(), // 10 minutes ago
-        updated_at: new Date(Date.now() - 60000).toISOString(),
-      },
-      {
-        id: "task_" + Math.floor(Math.random() * 1000),
-        type: "web_crawl",
-        status: "failed",
-        progress: 32,
-        message: "Error: Connection timeout while crawling page",
-        created_at: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
-        updated_at: new Date(Date.now() - 7000000).toISOString(),
-      }
-    ];
-    
-    // Provide mock data with the correct structure
-    return NextResponse.json({
-      success: true,
-      message: "Loaded mock task data for development",
-      data: { tasks: mockTasks }
-    });
-    
+
+    const response = await fetch(`${API_URL}/api/agent/tasks`, fetchOptions);
+
+    if (response.ok) {
+      const data = await response.json();
+      return NextResponse.json(data);
+    }
+
+    // If backend request fails, handle it gracefully
+    console.warn("Backend request failed, using mock task data");
+    return NextResponse.json(
+      { error: true, message: 'Failed to fetch tasks from backend' },
+      { status: response.status }
+    );
   } catch (error) {
     console.error('Error in tasks API route:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Internal server error', 
-        data: { tasks: [] } 
-      },
+      { error: true, message: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -97,58 +51,39 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    // Try to forward the request to the backend
-    try {
-      // Determine if we need to handle HTTPS with self-signed certs
-      const fetchOptions: RequestInit = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      };
-      
-      // Add HTTPS agent if needed (for self-signed certificates)
-      if (API_URL.startsWith('https://')) {
-        // @ts-ignore - The agent property is not in the TypeScript types
-        fetchOptions.agent = httpsAgent;
-      }
-      
-      const response = await fetch(`${API_URL}/tasks`, fetchOptions);
 
-      if (response.ok) {
-        const data = await response.json();
-        return NextResponse.json(data);
-      }
-      
-      // If backend request fails, handle it gracefully
-      console.warn("Backend task action failed, using mock response");
-    } catch (error) {
-      console.warn("Error connecting to backend for task action:", error);
+    // Forward the request to the backend
+    const fetchOptions: RequestInit = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    };
+
+    // Add HTTPS agent if needed (for self-signed certificates)
+    if (API_URL.startsWith('https://')) {
+      // @ts-ignore - The agent property is not in the TypeScript types
+      fetchOptions.agent = httpsAgent;
     }
-    
-    // If we get here, the backend request failed
-    // Provide a mock success response, especially for cancel operations
-    if (body.action === 'cancel' && body.task_id) {
-      return NextResponse.json({
-        success: true,
-        message: `Task '${body.task_id}' cancelled successfully (mock response)`,
-        data: { task: { id: body.task_id, status: "cancelled" } }
-      });
+
+    const response = await fetch(`${API_URL}/api/agent/tasks`, fetchOptions);
+
+    if (response.ok) {
+      const data = await response.json();
+      return NextResponse.json(data);
     }
-    
-    // For other actions, return a generic success response
-    return NextResponse.json({
-      success: true,
-      message: "Mock task action completed successfully",
-      data: { task: { id: body.task_id || "new_task_" + Date.now(), status: "running" } }
-    });
-    
+
+    // If backend request fails, handle it gracefully
+    console.warn("Backend task action failed, using mock response");
+    return NextResponse.json(
+      { error: true, message: 'Failed to perform task action on backend' },
+      { status: response.status }
+    );
   } catch (error) {
     console.error('Error in tasks POST route:', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { error: true, message: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

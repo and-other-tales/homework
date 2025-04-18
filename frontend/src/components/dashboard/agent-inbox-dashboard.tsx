@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { AlertCircle, CheckCircle2, Edit2, MessageSquare, X } from 'lucide-react';
 // Import formatDate directly from date-fns to avoid path issues
 import { format, formatDistanceToNow } from 'date-fns';
+import { fetchHumanInLoopTasks } from './simple-api'; // Import the fetch function
 
 // Define local formatDate function
 function formatDate(date: string | Date, format = "PPp") {
@@ -69,11 +70,12 @@ export function AgentInboxDashboard() {
 
   const fetchTasks = async () => {
     try {
-      // In a real app, this would fetch from your API
-      // For now, we'll just show an empty state
-      const mockTasks: HumanInLoopTask[] = [];
-      
-      setTasks(mockTasks);
+      const response = await fetchHumanInLoopTasks();
+      if (response.success) {
+        setTasks(response.data?.tasks || []);
+      } else {
+        toast.error(`Failed to load tasks: ${response.message}`);
+      }
       setLoading(false);
     } catch (error) {
       console.error('Error fetching human-in-loop tasks:', error);
