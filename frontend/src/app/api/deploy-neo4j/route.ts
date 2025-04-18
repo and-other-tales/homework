@@ -4,6 +4,34 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+// Helper function to execute with sudo if needed
+async function execWithSudo(command: string): Promise<{stdout: string, stderr: string}> {
+  try {
+    // Try without sudo first
+    console.log(`Executing: ${command}`);
+    return await execAsync(command);
+  } catch (error) {
+    console.error(`Command failed without sudo: ${error.message}`);
+    
+    if (error.message.includes('permission denied') || 
+        error.message.includes('Permission denied') ||
+        error.message.includes('EACCES')) {
+      
+      // Use pkexec or sudo depending on what's available
+      console.log(`Retrying with sudo: sudo ${command}`);
+      try {
+        return await execAsync(`sudo ${command}`);
+      } catch (sudoError) {
+        console.error(`Command also failed with sudo: ${sudoError.message}`);
+        throw new Error(`Command failed with and without sudo: ${sudoError.message}`);
+      }
+    }
+    
+    // If it's not a permission error, rethrow
+    throw error;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     console.log('Starting Neo4j Docker deployment...');

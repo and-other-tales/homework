@@ -1,5 +1,7 @@
 import logging
 import os
+import re
+import sys
 from pathlib import Path
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -22,9 +24,45 @@ class ConfigurationHandler:
     def __init__(self):
         self.credentials_manager = CredentialsManager()
         
+    def update_env_file(self, updates):
+        """Update the .env file with new values."""
+        env_file = Path(".env")
+        
+        # Create .env file if it doesn't exist
+        if not env_file.exists():
+            logger.info("Creating new .env file")
+            with open(env_file, "w") as f:
+                f.write("# Environment variables for the homework app\n\n")
+        
+        # Read existing content
+        with open(env_file, "r") as f:
+            content = f.read()
+        
+        # Update each key
+        for key, value in updates.items():
+            pattern = re.compile(f"^{key}=.*$", re.MULTILINE)
+            if pattern.search(content):
+                # Replace existing key
+                content = pattern.sub(f"{key}={value}", content)
+            else:
+                # Add new key
+                content += f"\n{key}={value}"
+        
+        # Write updated content
+        with open(env_file, "w") as f:
+            f.write(content)
+        
+        logger.info(f"Updated .env file with keys: {', '.join(updates.keys())}")
+            
     def update_configuration(self, config: ConfigurationModel):
         """Update application configuration."""
         try:
+            # Track which items were updated for the response
+            updated_items = {}
+            
+            # Updates for .env file
+            env_updates = {}
+            
             # Save each configuration item if provided
             if config.huggingface_token:
                 # For HuggingFace, we need a username but can use a default if not provided
@@ -32,9 +70,17 @@ class ConfigurationHandler:
                     username="homework_user",  # Default username
                     token=config.huggingface_token
                 )
+                updated_items["huggingface"] = True
+                
+                # Also update .env file
+                env_updates["HUGGINGFACE_TOKEN"] = config.huggingface_token
             
             if config.openai_api_key:
                 self.credentials_manager.save_openai_key(config.openai_api_key)
+                updated_items["openai"] = True
+                
+                # Also update .env file
+                env_updates["OPENAI_API_KEY"] = config.openai_api_key
             
             # If Neo4j credentials are provided, save them all together
             if config.neo4j_uri and config.neo4j_username and config.neo4j_password:
@@ -43,36 +89,32 @@ class ConfigurationHandler:
                     username=config.neo4j_username,
                     password=config.neo4j_password
                 )
+                updated_items["neo4j"] = True
+                
+                # Also update .env file
+                env_updates["NEO4J_URI"] = config.neo4j_uri
+                env_updates["NEO4J_USER"] = config.neo4j_username
+                env_updates["NEO4J_PASSWORD"] = config.neo4j_password
             
             # For GitHub token, we'll save it to the environment file
             if config.github_token:
-                env_file = Path(".env")
-                env_content = {}
+                env_updates["GITHUB_TOKEN"] = config.github_token
+                updated_items["github"] = True
                 
-                # Read existing .env file if it exists
-                if env_file.exists():
-                    with open(env_file, "r") as f:
-                        for line in f:
-                            if line.strip() and not line.startswith("#"):
-                                try:
-                                    key, value = line.strip().split("=", 1)
-                                    env_content[key] = value
-                                except ValueError:
-                                    # Skip lines that don't have an equals sign
-                                    pass
-                
-                # Update GitHub token
-                env_content["GITHUB_TOKEN"] = config.github_token
-                
-                # Write back to .env file
-                with open(env_file, "w") as f:
-                    for key, value in env_content.items():
-                        f.write(f"{key}={value}\n")
+                # Make GitHub token available in current process
+                os.environ["GITHUB_TOKEN"] = config.github_token
+            
+            # Update the .env file with all changes
+            if env_updates:
+                self.update_env_file(env_updates)
             
             return {
                 "success": True,
                 "message": "Configuration updated successfully",
-                "data": {"updated": True}
+                "data": {
+                    "updated": True,
+                    "items": updated_items
+                }
             }
         except Exception as e:
             logger.error(f"Error updating configuration: {e}")

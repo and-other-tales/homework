@@ -87,18 +87,11 @@ export function SetupWizard() {
 
   // Check if required environment variables are missing
   useEffect(() => {
-    // Check if setup was previously completed
-    const setupCompleted = localStorage.getItem('setup_completed') === 'true';
-    if (setupCompleted) {
-      // Don't show the wizard if setup was completed
-      return;
-    }
-    
-    // Show the wizard for initial setup
-    setOpen(true);
-
     const checkEnvironment = async () => {
       try {
+        // Check if setup was previously completed successfully
+        const setupCompleted = localStorage.getItem('setup_completed') === 'true';
+        
         // Check if we have saved state for the wizard
         const savedState = localStorage.getItem('setup_wizard_state');
         
@@ -132,10 +125,11 @@ export function SetupWizard() {
             const data = await response.json();
             
             // If there are missing configs in the response, open the wizard
+            // unless setup was previously completed (which means we're in configuration page)
             if (data.success && data.data?.missing_configs) {
               const missingConfigs = data.data.missing_configs as string[];
               
-              if (missingConfigs.length > 0) {
+              if (missingConfigs.length > 0 && !setupCompleted) {
                 // Mark the items that are missing as required
                 setConfigItems(prev => 
                   prev.map(item => ({
@@ -143,25 +137,34 @@ export function SetupWizard() {
                     required: missingConfigs.includes(item.key) || item.required
                   }))
                 );
-                // Wizard already opened for testing
-                // setOpen(true);
+                
+                // Open the wizard if there are missing required configs
+                setOpen(true);
               }
+            } else if (!setupCompleted) {
+              // Open the wizard if setup wasn't completed
+              setOpen(true);
             }
-          } else {
-            // If we can't connect to the server, we should show the setup wizard
-            // Wizard already opened for testing
-            // setOpen(true);
+          } else if (!setupCompleted) {
+            // If we can't connect to the server and setup wasn't completed, show the wizard
+            setOpen(true);
           }
         } catch (e) {
           console.error('Failed to fetch status:', e);
-          // Wizard already opened for testing
-          // setOpen(true);
+          
+          // Only open the wizard if setup wasn't completed
+          if (!setupCompleted) {
+            setOpen(true);
+          }
         }
       } catch (error) {
         console.error('Failed to check environment:', error);
-        // If we can't connect at all, show the setup wizard
-        // Wizard already opened for testing
-        // setOpen(true);
+        
+        // Check if setup was already completed before showing wizard on error
+        const setupCompleted = localStorage.getItem('setup_completed') === 'true';
+        if (!setupCompleted) {
+          setOpen(true);
+        }
       }
     };
 

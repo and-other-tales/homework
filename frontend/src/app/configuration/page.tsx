@@ -54,6 +54,14 @@ export default function ConfigurationPage() {
             openai_configured: data.data.openai_configured || false,
             neo4j_configured: data.data.neo4j_configured || false
           });
+          
+          // Mark setup as completed if we have any configured items
+          if (data.data.huggingface_configured || 
+              data.data.github_configured || 
+              data.data.openai_configured || 
+              data.data.neo4j_configured) {
+            localStorage.setItem('setup_completed', 'true');
+          }
         }
       } else {
         toast.error('Failed to load configuration status');
@@ -117,7 +125,7 @@ export default function ConfigurationPage() {
   const handleSaveConfiguration = async () => {
     try {
       setLoading(true);
-      toast.loading('Saving configuration...');
+      const loadingToast = toast.loading('Saving configuration...');
       
       // Filter out empty values except for required fields
       const configToSave: Record<string, string> = {};
@@ -151,8 +159,13 @@ export default function ConfigurationPage() {
       });
       
       if (response.ok) {
+        const data = await response.json();
+        
+        toast.dismiss(loadingToast);
         toast.success('Configuration saved successfully');
-        await loadConfigurationStatus();
+        
+        // Mark setup as completed
+        localStorage.setItem('setup_completed', 'true');
         
         // Create a sanitized config for localStorage that keeps non-sensitive values
         const sanitizedConfig = {
@@ -174,8 +187,28 @@ export default function ConfigurationPage() {
           openai_api_key: '',
           neo4j_password: ''
         });
+        
+        // Reload configuration status to update UI
+        await loadConfigurationStatus();
+        
+        // If we have any updated items from the response, let the user know
+        if (data.data?.items) {
+          const updatedItems = data.data.items;
+          let updatedMessage = 'Updated: ';
+          const itemNames = [];
+          
+          if (updatedItems.huggingface) itemNames.push('Hugging Face');
+          if (updatedItems.github) itemNames.push('GitHub');
+          if (updatedItems.openai) itemNames.push('OpenAI');
+          if (updatedItems.neo4j) itemNames.push('Neo4j');
+          
+          if (itemNames.length > 0) {
+            toast.success(`Updated: ${itemNames.join(', ')}`);
+          }
+        }
       } else {
         const data = await response.json();
+        toast.dismiss(loadingToast);
         toast.error(data.message || 'Failed to save configuration');
       }
     } catch (error) {
@@ -183,7 +216,6 @@ export default function ConfigurationPage() {
       toast.error('Error saving configuration');
     } finally {
       setLoading(false);
-      toast.dismiss();
     }
   };
 
