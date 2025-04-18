@@ -29,10 +29,16 @@ export function ChatInterface() {
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<TaskUpdate | null>(null);
   const wsClientRef = useRef<WebSocketClient | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Reset connection error when component is unmounted/remounted
+  useEffect(() => {
+    setConnectionError(null);
+  }, []);
+  
   useEffect(() => {
     // Create WebSocket client
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -50,6 +56,17 @@ export function ChatInterface() {
       setConnected(false);
       setConnecting(false);
       toast.error('Disconnected from chat server');
+      
+      if (event.data && event.data.reason) {
+        setConnectionError(event.data.reason);
+      }
+    });
+    
+    wsClientRef.current.addEventListener('error', (event) => {
+      if (event.data && event.data.message) {
+        setConnectionError(event.data.message);
+        toast.error(event.data.message);
+      }
     });
     
     wsClientRef.current.addEventListener('message', (event) => {
@@ -66,9 +83,24 @@ export function ChatInterface() {
       }
     });
     
-    wsClientRef.current.addEventListener('error', (event) => {
-      if (event.message) {
-        toast.error(event.message.content);
+    wsClientRef.current.addEventListener('system', (event) => {
+      // Check for LLM service not available error
+      if (event.message && event.message.error) {
+        const content = event.message.content || '';
+        
+        if (content.includes('LLM service is not available') || 
+            content.includes('OpenAI API key')) {
+          setConnectionError('OpenAI API key is not configured. Please visit the configuration page to set it up.');
+          toast.error('OpenAI API key is required for chat');
+        }
+      }
+      
+      // Check for connection info with service availability
+      if (event.data && typeof event.data.llm_available !== 'undefined') {
+        // If LLM is not available, show error
+        if (!event.data.llm_available) {
+          setConnectionError('OpenAI API key is not configured. Please visit the configuration page to set it up.');
+        }
       }
     });
     
@@ -96,6 +128,7 @@ export function ChatInterface() {
       console.error('Failed to connect to WebSocket:', error);
       setConnected(false);
       setConnecting(false);
+      setConnectionError('Failed to connect to chat server. Please check your configuration settings.');
       toast.error('Failed to connect to chat server');
     });
     
@@ -187,8 +220,31 @@ export function ChatInterface() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-4">
-            <ChatMessages messages={messages} />
-            <div ref={messagesEndRef} />
+            {connectionError ? (
+              <div className="flex h-full flex-col items-center justify-center text-center p-4">
+                <div className="mb-4 text-red-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-red-500 mb-2">Connection Error</h3>
+                <p className="text-sm text-muted-foreground mb-4">{connectionError}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => window.location.href = '/configuration'}
+                >
+                  Go to Configuration
+                </Button>
+              </div>
+            ) : (
+              <>
+                <ChatMessages messages={messages} />
+                <div ref={messagesEndRef} />
+              </>
+            )}
           </div>
           
           <div className="border-t p-3">
@@ -197,10 +253,10 @@ export function ChatInterface() {
                 placeholder="Type a message..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                disabled={!connected}
+                disabled={!connected || !!connectionError}
                 className="flex-1"
               />
-              <Button type="submit" disabled={!connected || !input.trim()}>
+              <Button type="submit" disabled={!connected || !input.trim() || !!connectionError}>
                 {connected ? <Send className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}
               </Button>
             </form>

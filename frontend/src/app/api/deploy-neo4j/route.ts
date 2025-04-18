@@ -36,15 +36,29 @@ export async function POST(request: Request) {
   try {
     console.log('Starting Neo4j Docker deployment...');
     
-    // Check if Docker is installed
+    // Check if Docker is installed - try with and without sudo
     try {
-      const { stdout } = await execAsync('docker --version');
-      console.log('Docker version detected:', stdout.trim());
+      try {
+        const { stdout } = await execAsync('docker --version');
+        console.log('Docker version detected:', stdout.trim());
+      } catch (error) {
+        // Try with sudo if permission denied
+        if (error.message.includes('permission denied') || 
+            error.message.includes('Permission denied') ||
+            error.message.includes('EACCES')) {
+          
+          console.log('Trying docker with sudo due to permission issues');
+          const { stdout } = await execAsync('sudo docker --version');
+          console.log('Docker version detected (with sudo):', stdout.trim());
+        } else {
+          throw error;
+        }
+      }
     } catch (error) {
       console.error('Docker check error:', error);
       return NextResponse.json({ 
         success: false, 
-        message: 'Docker is not installed or not available from this environment. Please install Docker first.' 
+        message: 'Docker is not installed, not available, or requires sudo permissions. Please install Docker or run this application with appropriate permissions.' 
       }, { status: 500 });
     }
     
@@ -162,10 +176,28 @@ export async function POST(request: Request) {
         const simpleCommand = `docker run -d --name homework-neo4j -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/${randomPassword} neo4j:5.3`;
         console.log('Running Docker command:', simpleCommand);
         
-        const { stdout, stderr } = await execAsync(simpleCommand);
-        console.log('Docker run output:', stdout.trim());
-        if (stderr) {
-          console.warn('Docker run stderr:', stderr);
+        try {
+          // Try without sudo first
+          const { stdout, stderr } = await execAsync(simpleCommand);
+          console.log('Docker run output:', stdout.trim());
+          if (stderr) {
+            console.warn('Docker run stderr:', stderr);
+          }
+        } catch (error) {
+          // If permission denied, try with sudo
+          if (error.message.includes('permission denied') || 
+              error.message.includes('Permission denied') ||
+              error.message.includes('EACCES')) {
+            
+            console.log('Trying docker run with sudo due to permission issues');
+            const { stdout, stderr } = await execAsync(`sudo ${simpleCommand}`);
+            console.log('Docker run output (with sudo):', stdout.trim());
+            if (stderr) {
+              console.warn('Docker run stderr (with sudo):', stderr);
+            }
+          } else {
+            throw error;
+          }
         }
         
         // Wait for Neo4j to start up (might take a few seconds)
@@ -182,6 +214,17 @@ export async function POST(request: Request) {
         });
       } catch (runError) {
         console.error('Error running Neo4j container:', runError);
+        
+        // Specific message for permission errors
+        if (runError.message.includes('permission denied') || 
+            runError.message.includes('Permission denied') ||
+            runError.message.includes('EACCES')) {
+          return NextResponse.json({ 
+            success: false, 
+            message: `Permission denied. Please run the application with sufficient privileges to use Docker, or add your user to the docker group.` 
+          }, { status: 500 });
+        }
+        
         return NextResponse.json({ 
           success: false, 
           message: `Failed to run Neo4j container: ${runError.message}` 

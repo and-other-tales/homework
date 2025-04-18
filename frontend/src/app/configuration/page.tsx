@@ -270,68 +270,116 @@ export default function ConfigurationPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="huggingface_token">
-                Hugging Face Token
+              <div className="flex items-center">
+                <Label htmlFor="huggingface_token" className="flex items-center">
+                  Hugging Face Token
+                  {configStatus.huggingface_configured && (
+                    <span className="ml-2 inline-flex items-center">
+                      <span className="text-green-600 mr-1">✓</span>
+                      <span className="text-xs bg-green-100 text-green-800 rounded-full px-2 py-0.5">
+                        Configured
+                      </span>
+                    </span>
+                  )}
+                </Label>
+              </div>
+              <div className="relative">
+                <Input
+                  id="huggingface_token"
+                  name="huggingface_token"
+                  type="password"
+                  placeholder={configStatus.huggingface_configured ? "••••••••••••••••" : "hf_..."}
+                  value={config.huggingface_token}
+                  onChange={handleInputChange}
+                  className={configStatus.huggingface_configured ? "border-green-300 pr-10" : ""}
+                />
                 {configStatus.huggingface_configured && (
-                  <span className="ml-2 text-xs bg-green-100 text-green-800 rounded-full px-2 py-0.5">
-                    Configured
-                  </span>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <span className="text-green-600 text-lg">✓</span>
+                  </div>
                 )}
-              </Label>
-              <Input
-                id="huggingface_token"
-                name="huggingface_token"
-                type="password"
-                placeholder="hf_..."
-                value={config.huggingface_token}
-                onChange={handleInputChange}
-              />
-              <p className="text-sm text-muted-foreground">
-                Required for dataset creation and management with Hugging Face.
+              </div>
+              <p className="text-sm text-muted-foreground flex justify-between">
+                <span>Required for dataset creation and management with Hugging Face.</span>
+                {configStatus.huggingface_configured && (
+                  <span className="text-green-600 text-xs italic">Token already stored securely</span>
+                )}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="github_token">
-                GitHub Token
+              <div className="flex items-center">
+                <Label htmlFor="github_token" className="flex items-center">
+                  GitHub Token
+                  {configStatus.github_configured && (
+                    <span className="ml-2 inline-flex items-center">
+                      <span className="text-green-600 mr-1">✓</span>
+                      <span className="text-xs bg-green-100 text-green-800 rounded-full px-2 py-0.5">
+                        Configured
+                      </span>
+                    </span>
+                  )}
+                </Label>
+              </div>
+              <div className="relative">
+                <Input
+                  id="github_token"
+                  name="github_token"
+                  type="password"
+                  placeholder={configStatus.github_configured ? "••••••••••••••••" : "ghp_..."}
+                  value={config.github_token}
+                  onChange={handleInputChange}
+                  className={configStatus.github_configured ? "border-green-300 pr-10" : ""}
+                />
                 {configStatus.github_configured && (
-                  <span className="ml-2 text-xs bg-green-100 text-green-800 rounded-full px-2 py-0.5">
-                    Configured
-                  </span>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <span className="text-green-600 text-lg">✓</span>
+                  </div>
                 )}
-              </Label>
-              <Input
-                id="github_token"
-                name="github_token"
-                type="password"
-                placeholder="ghp_..."
-                value={config.github_token}
-                onChange={handleInputChange}
-              />
-              <p className="text-sm text-muted-foreground">
-                Optional: Provides higher rate limits for GitHub API access.
+              </div>
+              <p className="text-sm text-muted-foreground flex justify-between">
+                <span>Optional: Provides higher rate limits for GitHub API access.</span>
+                {configStatus.github_configured && (
+                  <span className="text-green-600 text-xs italic">Token already stored securely</span>
+                )}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="openai_api_key">
-                OpenAI API Key
+              <div className="flex items-center">
+                <Label htmlFor="openai_api_key" className="flex items-center">
+                  OpenAI API Key
+                  {configStatus.openai_configured && (
+                    <span className="ml-2 inline-flex items-center">
+                      <span className="text-green-600 mr-1">✓</span>
+                      <span className="text-xs bg-green-100 text-green-800 rounded-full px-2 py-0.5">
+                        Configured
+                      </span>
+                    </span>
+                  )}
+                </Label>
+              </div>
+              <div className="relative">
+                <Input
+                  id="openai_api_key"
+                  name="openai_api_key"
+                  type="password"
+                  placeholder={configStatus.openai_configured ? "••••••••••••••••" : "sk-..."}
+                  value={config.openai_api_key}
+                  onChange={handleInputChange}
+                  className={configStatus.openai_configured ? "border-green-300 pr-10" : ""}
+                />
                 {configStatus.openai_configured && (
-                  <span className="ml-2 text-xs bg-green-100 text-green-800 rounded-full px-2 py-0.5">
-                    Configured
-                  </span>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <span className="text-green-600 text-lg">✓</span>
+                  </div>
                 )}
-              </Label>
-              <Input
-                id="openai_api_key"
-                name="openai_api_key"
-                type="password"
-                placeholder="sk-..."
-                value={config.openai_api_key}
-                onChange={handleInputChange}
-              />
-              <p className="text-sm text-muted-foreground">
-                Optional: Used for AI-powered features.
+              </div>
+              <p className="text-sm text-muted-foreground flex justify-between">
+                <span>Optional: Used for AI-powered features.</span>
+                {configStatus.openai_configured && (
+                  <span className="text-green-600 text-xs italic">Key already stored securely</span>
+                )}
               </p>
             </div>
           </CardContent>
@@ -347,7 +395,12 @@ export default function ConfigurationPage() {
           <CardContent className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-medium">Database Status</h3>
+                <h3 className="text-lg font-medium flex items-center">
+                  Database Status
+                  {configStatus.neo4j_configured && (
+                    <span className="ml-2 text-green-600">✓</span>
+                  )}
+                </h3>
                 <p className="text-sm text-muted-foreground">
                   {configStatus.neo4j_configured
                     ? "Neo4j is configured and ready to use"
@@ -362,49 +415,100 @@ export default function ConfigurationPage() {
                 disabled={loading || deployingNeo4j}
               >
                 {deployingNeo4j ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Deploying...
+                  </>
                 ) : (
-                  <Database className="h-4 w-4" />
+                  <>
+                    <Database className="h-4 w-4" />
+                    Deploy Neo4j Docker
+                  </>
                 )}
-                {deployingNeo4j ? "Deploying..." : "Deploy Neo4j Docker"}
               </Button>
             </div>
+            
+            {deployingNeo4j && (
+              <div className="text-xs text-amber-500 mt-2 bg-amber-50 p-2 rounded border border-amber-200">
+                <p className="font-medium">Deploying Neo4j in Docker...</p>
+                <p>You may need to check your terminal - admin permissions may be required.</p>
+              </div>
+            )}
 
             <div className="space-y-2">
-              <Label htmlFor="neo4j_uri">Neo4j URI</Label>
-              <Input
-                id="neo4j_uri"
-                name="neo4j_uri"
-                placeholder="bolt://localhost:7687"
-                value={config.neo4j_uri}
-                onChange={handleInputChange}
-              />
+              <div className="flex items-center">
+                <Label htmlFor="neo4j_uri">Neo4j URI</Label>
+                {configStatus.neo4j_configured && (
+                  <span className="ml-2 text-green-600">✓</span>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  id="neo4j_uri"
+                  name="neo4j_uri"
+                  placeholder="bolt://localhost:7687"
+                  value={config.neo4j_uri}
+                  onChange={handleInputChange}
+                  className={configStatus.neo4j_configured ? "border-green-300" : ""}
+                />
+                {configStatus.neo4j_configured && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <span className="text-green-600 text-sm">Verified</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="neo4j_username">Neo4j Username</Label>
-              <Input
-                id="neo4j_username"
-                name="neo4j_username"
-                placeholder="neo4j"
-                value={config.neo4j_username}
-                onChange={handleInputChange}
-              />
+              <div className="flex items-center">
+                <Label htmlFor="neo4j_username">Neo4j Username</Label>
+                {configStatus.neo4j_configured && (
+                  <span className="ml-2 text-green-600">✓</span>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  id="neo4j_username"
+                  name="neo4j_username"
+                  placeholder="neo4j"
+                  value={config.neo4j_username}
+                  onChange={handleInputChange}
+                  className={configStatus.neo4j_configured ? "border-green-300" : ""}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="neo4j_password">Neo4j Password</Label>
-              <Input
-                id="neo4j_password"
-                name="neo4j_password"
-                type="password"
-                placeholder="password"
-                value={config.neo4j_password}
-                onChange={handleInputChange}
-              />
-              <p className="text-sm text-muted-foreground">
-                All fields are required to save Neo4j configuration.
-              </p>
+              <div className="flex items-center">
+                <Label htmlFor="neo4j_password">Neo4j Password</Label>
+                {configStatus.neo4j_configured && (
+                  <span className="ml-2 text-green-600">✓</span>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  id="neo4j_password"
+                  name="neo4j_password"
+                  type="password"
+                  placeholder={configStatus.neo4j_configured ? "••••••••••••••••" : "password"}
+                  value={config.neo4j_password}
+                  onChange={handleInputChange}
+                  className={configStatus.neo4j_configured ? "border-green-300" : ""}
+                />
+                {configStatus.neo4j_configured && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <span className="text-green-600 text-lg">✓</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-between">
+                <p className="text-sm text-muted-foreground">
+                  All fields are required to save Neo4j configuration.
+                </p>
+                {configStatus.neo4j_configured && (
+                  <span className="text-green-600 text-xs italic">Connection verified</span>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
