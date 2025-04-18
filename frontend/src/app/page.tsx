@@ -1,4 +1,5 @@
-import { Metadata } from "next";
+'use client';
+
 import PageLayout from "@/components/layout/page-layout";
 import { NewTaskModal } from "@/components/dashboard/new-task-modal";
 import { DashboardCards } from "@/components/dashboard/dashboard-cards";
@@ -6,10 +7,7 @@ import { DashboardTaskList } from "@/components/dashboard/task-list";
 import { AgentInboxDashboard } from "@/components/dashboard/agent-inbox-dashboard";
 import { useState } from "react";
 
-export const metadata: Metadata = {
-  title: "Dashboard | othertales homework",
-  description: "othertales homework Dashboard",
-};
+// Metadata needs to be in a separate layout file for client components
 
 export default function DashboardPage() {
   return (

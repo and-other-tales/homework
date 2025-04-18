@@ -1,13 +1,11 @@
-import { Metadata } from "next";
+'use client';
+
 import PageLayout from "@/components/layout/page-layout";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, Trash2, RefreshCw } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: "Hugging Face | homeworkales homework",
-  description: "Manage Hugging Face datasets",
-};
+// Metadata needs to be in a separate layout file for client components
 
 export default function HuggingFacePage() {
   return (

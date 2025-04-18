@@ -1,3 +1,5 @@
+'use client';
+
 import PageLayout from "@/components/layout/page-layout";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { ExampleCommands } from "@/components/chat/example-commands";

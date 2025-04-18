@@ -1,14 +1,12 @@
-import { Metadata } from "next";
+'use client';
+
 import PageLayout from "@/components/layout/page-layout";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Save } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: "Configuration | homeworkales homework",
-  description: "Configure homeworkrk settings",
-};
+// Metadata needs to be in a separate layout file for client components
 
 export default function ConfigurationPage() {
   return (
