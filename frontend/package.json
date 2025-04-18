@@ -3,15 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "./node_modules/.bin/next dev",
-    "build": "./node_modules/.bin/next dev",
-    "start": "./node_modules/.bin/next start",
-    "lint": "./node_modules/.bin/next lint",
-    "test": "npx jest --config=jest.config.js",
-    "test:watch": "npx jest --config=jest.config.js --watch",
-    "test:coverage": "npx jest --config=jest.config.js --coverage",
-    "test:frontend": "npx jest --config=jest.config.js --testMatch='**/tests/frontend/**/*.test.(ts|tsx|js|jsx)'",
-    "test:integration": "npx jest --config=jest.config.js --testMatch='**/tests/integration/**/*.test.(ts|tsx|js|jsx)'"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "jest --config=jest.config.js",
+    "test:watch": "jest --config=jest.config.js --watch",
+    "test:coverage": "jest --config=jest.config.js --coverage",
+    "test:frontend": "jest --config=jest.config.js --testMatch='**/tests/frontend/**/*.test.(ts|tsx|js|jsx)'",
+    "test:integration": "jest --config=jest.config.js --testMatch='**/tests/integration/**/*.test.(ts|tsx|js|jsx)'"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.0.4",
